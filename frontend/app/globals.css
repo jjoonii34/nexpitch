@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+/* 색은 전부 여기 변수로만 정의한다. 다크가 기본이고, 기기가 라이트 모드면 아래에서 덮어쓴다. */
+:root {
+  --bg: #0d1017;
+  --surface: #171b24;
+  --surface-2: #1f2430;
+  --line: #2a3040;
+  --text: #eef0f4;
+  --muted: #8b93a5;
+  --accent: #ff7a45;
+  --live: #ff4d5e;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f3f4f7;
+    --surface: #ffffff;
+    --surface-2: #eceef3;
+    --line: #dfe2ea;
+    --text: #141821;
+    --muted: #677086;
+    --accent: #e85a1f;
+    --live: #e0283b;
+    color-scheme: light;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-live: var(--live);
+  --font-sans: var(--font-geist-sans), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* 날짜 가로 스크롤의 스크롤바 숨김 */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
