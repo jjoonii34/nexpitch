@@ -2,3 +2,5 @@ httpx          # HTTP 호출 (나중에 FastAPI 테스트에도 사용)
 pydantic       # RawArticle 형태 검증 (FastAPI가 어차피 사용)
 python-dotenv  # .env 파일의 키를 읽기 위해
 pytest         # 테스트 실행
+sqlalchemy     # Python 코드로 테이블을 정의하고 읽고 쓰기 위해 (ADR 0003)
+psycopg[binary]  # PostgreSQL(Neon)에 접속하는 드라이버

@@ -17,7 +17,7 @@ Claude Code가 지켜야 할 것:
 
 ## 1. 프로젝트 한 줄
 
-리버풀(→빅6→EPL) 팬을 위한 축구 앱. 경기 결과·순위·선수 스탯을 FotMob 스타일 UI로 보여주고, 공신력 있는 기자의 이적·부상·구단 이슈를 **기자 티어와 함께 한국어로 요약**하며, 그 요약·추천 품질을 **앱 스스로 측정**한다.
+프리미어리그 20개 구단 팬을 위한 축구 앱. 경기 결과·순위·선수 스탯을 FotMob 스타일 UI로 보여주고, 공신력 있는 기자의 이적·부상·구단 이슈를 **기자 티어와 함께 한국어로 요약**한다. (품질 측정은 2026-11-14에 v1 범위에서 뺐다 → 4-4 참고)
 
 - 레포: `jjoonii34/nexpitch` (배포: https://nexpitch.vercel.app)
 - 소유자: 융합소프트웨어학부 휴학생, 학부연구생(LLM 추천 연구). 개발 경험 적음 → 설명은 처음 보는 사람 기준으로.
@@ -28,7 +28,7 @@ Claude Code가 지켜야 할 것:
 
 | 버전 | 기한 | 범위 |
 |---|---|---|
-| v1 | 2027-02 | 리버풀 뉴스 요약 + 기자 티어 + 품질 측정 + 경기 결과/순위. 빅6까지 확장 가능 |
+| v1 | 2027-02 | EPL 20개 구단 뉴스(이적·부상·구단 이슈) 요약 + 기자 티어(리버풀부터) + 경기 결과/순위. 뉴스 소스는 가디언 하나 |
 | v2 | 2027 상반기 | 5대 리그 결과·순위·선수 스탯(득점·어시·반칙 등), Docker → k8s |
 | v3 | 이후 | 한국인 선수 중심 기능 |
 
@@ -43,7 +43,7 @@ Claude Code가 지켜야 할 것:
 | 백엔드 | Python, FastAPI, PostgreSQL | 소유자가 뼈대 직접 작성 중 |
 | 프론트 | Next.js | HTMX 대신 선택. 프로덕션 수준이 목표 |
 | LLM | Gemini Flash 계열 무료 티어 (배치), 로컬 Ollama는 테스트용 | 한도·모델명은 실행 전 AI Studio에서 확인 |
-| 수집 | 가디언 Open Platform API(무료 개발자 키, 비상업), 매체 RSS, 구단 공식 사이트 | X API는 v1 이후 소량 추가 검토 |
+| 수집 | 가디언 Open Platform API(무료 개발자 키, 비상업) | v1은 가디언만. 매체 RSS·구단 공식 사이트·X API는 v1 이후 검토 |
 | 스케줄 | GitHub Actions cron (하루 2회 배치) | 서버 상주 프로세스 없음 |
 | 배포 | Vercel(프론트), 백엔드는 무료 플랜 중 선택 예정 → ADR 필요 | |
 | 컨테이너 | Docker (v1 후반), k8s는 v2 | |
@@ -69,7 +69,8 @@ Claude Code가 지켜야 할 것:
 - 요약은 사용자별이 아니라 **이벤트(이적 건·이슈 건) 단위**로 만든다. 사용자 피드는 필터·정렬만.
 - 콘텐츠 범위: 이적·출전·부상·전술·구단 경영. 선수·오너 사생활 가십은 제외.
 
-### 4-4. 품질 측정 (이 프로젝트의 차별점)
+### 4-4. 품질 측정 (보류 — 2026-11-14 v1 범위에서 제외)
+지금은 만들지 않는다. 아래는 다시 시작할 때를 위한 설계 메모다.
 - `eval/` 모듈은 다른 프로젝트로 추출될 예정 → 입력을 "추천 목록 + 정답 + 카탈로그 + 인기도"로만 받게 설계. 앱 내부 모델에 의존 금지.
 - 측정 항목: 태깅 정확도(직접 라벨링한 테스트셋 50~100개), 요약 사실 오류율, 추천 혼잡도·인기 편향, 파싱 실패율, 비용·지연.
 - 사용자 반응 버튼("정확해요/틀렸어요")은 사람 채점 데이터로 저장한다.
@@ -100,7 +101,7 @@ nexpitch/
 │   ├── app/
 │   │   ├── collectors/    # 소스별 수집기
 │   │   ├── llm/           # 프롬프트(버전), 어댑터, 태깅
-│   │   ├── eval/          # 품질 측정 (독립 모듈)
+│   │   ├── eval/          # 품질 측정 (보류, 독립 모듈)
 │   │   ├── models/        # SQLAlchemy / 스키마
 │   │   └── api/           # 라우터
 │   └── tests/
@@ -145,7 +146,7 @@ nexpitch/
 
 ## 지금 있는 것
 
-nexpitch는 프리미어리그 경기 결과·순위·경기 상세를 모바일 화면으로 보여주는 앱이다. 이후 리버풀 이적·부상 뉴스의 한국어 요약, 기자 티어, 요약 품질 측정으로 확장한다. 배포 주소: https://nexpitch.vercel.app
+nexpitch는 프리미어리그 경기 결과·순위·경기 상세를 모바일 화면으로 보여주는 앱이다. 이후 20개 구단 이적·부상 뉴스의 한국어 요약과 기자 티어로 확장한다. 배포 주소: https://nexpitch.vercel.app
 
 레포는 서로 독립된 두 부분으로 나뉜다. 공통 도구나 루트 `package.json`은 없다.
 
@@ -176,7 +177,7 @@ python -m pytest tests/test_guardian.py -k strip_html
 python -m app.collectors.guardian             # 실제 수집. backend/.env에 GUARDIAN_API_KEY 필요
 ```
 
-환경 파일: `frontend/.env.local`(`FOOTBALL_DATA_API_KEY`), `backend/.env`(`GUARDIAN_API_KEY`). 각각 커밋된 `.env.example`이 있다. 키 값은 커밋하지도 출력하지도 않는다.
+환경 파일: `frontend/.env.local`(`FOOTBALL_DATA_API_KEY`), `backend/.env`(`GUARDIAN_API_KEY`, `DATABASE_URL`). 각각 커밋된 `.env.example`이 있다. 키 값은 커밋하지도 출력하지도 않는다.
 
 ## 프론트 구조
 
@@ -207,6 +208,8 @@ lib/football.ts  →  lib/mappers.ts  →  lib/types.ts  →  app/ + components/
 - 원본 응답은 `<레포 루트>/data/raw/<소스>/<YYYY-MM-DD>.json`에 저장한다 (git 제외). 같은 날 다시 실행하면 API를 부르지 않고 파일을 읽는다. 다시 받으려면 `force=True`.
 - 가디언은 API 키를 주소에 붙여 보낸다. 그래서 오류는 상태 코드만 알린다. httpx의 기본 오류나 주소를 그대로 내보내지 않는다.
 - `parse`는 필수 값이 빠진 기사를 조용히 건너뛴다.
+- 저장(ADR 0003): `app/models/news.py`에 테이블 3개(`clubs`, `articles`, `article_clubs`), `app/db.py`가 `DATABASE_URL`로 접속, `app/storage.py`의 `save_articles`가 `url` 기준으로 중복 없이 저장하고 구단과 연결한다. `python -m app.db`는 없는 테이블을 만든다.
+- 저장 테스트는 메모리 안의 SQLite로 돈다. 그래서 저장 코드에 PostgreSQL 전용 문법을 쓰지 않는다. `DATABASE_URL`에는 비밀번호가 있으니 출력하지 않는다.
 
 ## 작업 규칙 보충
 
@@ -215,5 +218,5 @@ lib/football.ts  →  lib/mappers.ts  →  lib/types.ts  →  app/ + components/
 - **커밋**: `type(scope): 무엇 — 왜`. 예: `fix(frontend): API 실패 원인을 화면에 표시 — 배포 환경에서 오류 내용이 가려져 진단할 수 없어서`. 커밋과 PR에 `Co-Authored-By`나 "Generated with" 문구를 넣지 않는다.
 - **`docs/notes.md`**: 날짜가 붙은 절을 추가하고 기존 소제목을 쓴다 — 무엇을 왜 / 틀릴 수 있는 것 / 비용 / 다음 할 일. 실제 API 응답으로 확인하지 못한 것은 그렇다고 적는다.
 - **`docs/roadmap.md`**: "v1 진행 상황"의 항목을 날짜와 함께 체크하거나 추가한다.
-- **아직 정하지 않은 것**(ADR 필요): 백엔드 호스팅, DB, 경기 데이터 호출을 백엔드로 옮길지.
+- **아직 정하지 않은 것**(ADR 필요): 백엔드 호스팅, 경기 데이터 호출을 백엔드로 옮길지.
 - 라이브러리를 추가할 때는 `requirements.txt`처럼 한 줄 주석으로 이유를 적는다.
