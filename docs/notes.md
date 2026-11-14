@@ -63,3 +63,40 @@
 - 확인 못 한 것: 프리미어리그 경기의 스탯 제공 여부(확인한 친선전은 값이 비어 있었음), 3일 창이 지난 경기를 id로 다시 조회할 수 있는지.
 
 결론: 라인업은 "경기 전후 3일 안에 받아서 저장"해야만 쌓을 수 있다 → 저장소(DB)와 배치가 필요하다. 프론트 단독으로는 지난 경기 라인업을 보여줄 수 없다.
+
+## 2026-11-14 — 가디언 수집기 (뉴스 파이프라인 첫 단위)
+
+**무엇을 왜**
+- `backend/app/collectors/`에 수집기의 공통 규칙(`base.py`)과 가디언 수집기(`guardian.py`)를 만들었다. 모든 수집기는 `RawArticle(title, body_or_summary, url, author, published_at, source)` 목록을 돌려준다 → 소스를 추가할 때 기존 코드를 고치지 않는다.
+- `fetch_raw`(API 호출 + 원본을 `data/raw/guardian/날짜.json`에 저장)와 `parse`(원본 → RawArticle)를 나눴다. 변환은 네트워크 없이 테스트하고, 같은 날 다시 실행하면 파일을 읽어 API를 다시 부르지 않는다.
+- 라이브러리: httpx(HTTP 호출), pydantic(형태 검증, FastAPI가 어차피 사용), python-dotenv(.env 읽기), pytest. 환경은 venv + pip (추가 설치 없이 설명하기 쉬워서).
+- 가디언은 키를 주소에 붙여 보낸다. 그래서 오류가 나면 주소가 포함된 기본 오류 대신 상태 코드만 알리게 했다 (키가 로그에 남지 않도록).
+
+**틀릴 수 있는 것**
+- 가디언 필드 이름(`webTitle`, `fields.trailText`, `fields.byline`)은 실제 응답으로 아직 확인하지 못했다 (키 없음). 테스트 4개는 내가 만든 예시 응답 기준이다.
+- 무료 한도, 한 번에 받을 수 있는 기사 수 확인 필요.
+- 기자가 여러 명이면 바이라인이 "A and B" 형태일 수 있다 → 기자 매칭 때 처리.
+
+**비용**: 0원.
+
+**다음 할 일**: `backend/.env`에 가디언 키 입력 → `python -m app.collectors.guardian`으로 실제 수집 확인.
+
+## 2026-11-14 — 가디언 수집기 실제 키로 검증
+
+**무엇을 왜**
+- `backend/.env`에 키를 넣고 `python -m app.collectors.guardian`을 실행했다. 기사 30건을 받아 30건 모두 `RawArticle`로 변환됐다 (건너뛴 기사 0건). 코드 수정은 필요 없었다.
+- 확인된 것: 필드 이름(`webTitle`, `webUrl`, `webPublicationDate`, `fields.trailText`, `fields.byline`)이 변환기와 일치한다. 요약문에 HTML이 섞인 기사가 1건 있었고 `strip_html`이 걷어냈다. 원본은 `data/raw/guardian/2026-11-14.json`에 저장됐고 git에서 제외된다.
+- 응답 정보: 키 등급은 `developer`, `football/liverpool` 태그 기사는 전체 14,421건, 한 번에 30건(요청한 `page-size` 그대로)이 온다.
+- 처음에 키를 `.env`가 아니라 `.env.example`에 넣었다. `.env.example`은 git에 올라가는 파일이라 커밋 전에 `.env`로 옮기고 예시 파일은 비웠다 (커밋된 적 없음).
+
+**실제 응답에서 새로 알게 된 것 (다음 단계에 영향)**
+- 바이라인이 이름만 오지 않는다: `Andy Hunter at Anfield`, `Andy Hunter in Istanbul`(장소가 붙음), `David Hytner and Andy Hunter`, `Jacob Steinberg,Jamie Jackson and Andy Hunter`(여러 명), `Guardian sport`(개인이 아님). 기자 매칭 때 장소를 떼고 여러 명을 나누는 처리가 필요하다.
+- 리버풀 태그라도 리버풀 뉴스가 아닌 글이 많다: 주말 종합(10 talking points), 실시간 중계(`type: liveblog`), 상대 팀 기사. LLM 태깅의 '무관' 카테고리가 실제로 필요하다. `type` 값으로 중계를 미리 거를 수도 있다 (지금 `RawArticle`에는 `type`이 없음).
+
+**틀릴 수 있는 것**
+- 무료 한도(하루·초당 호출 수)는 응답에 나오지 않아 여전히 확인 필요. 하루 2회 배치라 걸릴 가능성은 낮다.
+- 30건이 약 2주치다. 하루 2회 수집이면 겹치는 기사가 대부분 → 저장할 때 `url` 기준 중복 제거가 필요하다.
+
+**비용**: 0원 (API 호출 1회).
+
+**다음 할 일**: 수집 결과를 어디에 저장할지 선택지 비교 → ADR → 저장 구현.
