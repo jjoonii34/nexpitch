@@ -24,3 +24,12 @@
 - 아직 확인 못 한 것: 경기 진행 중(live) 상태 표시 — 실제 진행 중인 경기가 있을 때 봐야 한다.
 
 **다음 할 일**: GitHub 레포 생성 → 첫 커밋·push → Vercel Import.
+
+## 2026-11-14 — 첫 배포 (Vercel)
+
+- GitHub 레포를 Vercel에 연결해 https://nexpitch.vercel.app 으로 배포했다. 이후 `git push`만 하면 자동으로 다시 배포된다.
+- 막혔던 점 1: 배포는 Ready인데 404. Next.js 앱이 레포 맨 위가 아니라 `frontend/`에 있는데 Root Directory를 지정하지 않아, Vercel이 레포 전체를 정적 파일로 올렸다. `/frontend/package.json`이 열리는 것으로 확인했고, 프로젝트를 다시 Import하며 Root Directory를 `frontend`로 지정해 해결.
+- 막혔던 점 2: 배포 후 샘플 데이터 표시. `.env.local`은 git에 올라가지 않으므로 Vercel 환경변수에 키를 따로 넣어야 하고, 환경변수는 Redeploy해야 반영된다. 정확한 실패 원인은 끝내 확인하지 못했다(키 재입력 후 해결됨. 호출 한도 초과였을 가능성도 있음).
+- 그래서 고친 것: 캐시 함수(`use cache`) 안에서 던진 오류는 배포 환경에서 내용이 가려진다. 실패를 값으로 돌려주도록 바꿔 화면에 원인(키 형식, 응답 코드)이 나오게 했다.
+
+**다음 할 일**: v1의 다음 기능 선택 (경기 상세 / 뉴스 파이프라인 / 팔로잉).
