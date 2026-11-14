@@ -209,6 +209,7 @@ lib/football.ts  →  lib/mappers.ts  →  lib/types.ts  →  app/ + components/
 - 가디언은 API 키를 주소에 붙여 보낸다. 그래서 오류는 상태 코드만 알린다. httpx의 기본 오류나 주소를 그대로 내보내지 않는다.
 - `parse`는 필수 값이 빠진 기사를 조용히 건너뛴다.
 - 저장(ADR 0003): `app/models/news.py`에 테이블 3개(`clubs`, `articles`, `article_clubs`), `app/db.py`가 `DATABASE_URL`로 접속, `app/storage.py`의 `save_articles`가 `url` 기준으로 중복 없이 저장하고 구단과 연결한다. `python -m app.db`는 없는 테이블을 만든다.
+- 구단 목록은 `<레포 루트>/data/clubs.csv`(이름, 가디언 태그)가 원본이다. `python -m app.clubs`가 `clubs` 테이블을 csv에 맞춘다(빠진 구단은 지우지 않고 `in_premier_league=False`). 가디언 태그는 이름에서 추측할 수 없으니 새 구단은 API로 확인한다.
 - 저장 테스트는 메모리 안의 SQLite로 돈다. 그래서 저장 코드에 PostgreSQL 전용 문법을 쓰지 않는다. `DATABASE_URL`에는 비밀번호가 있으니 출력하지 않는다.
 
 ## 작업 규칙 보충
