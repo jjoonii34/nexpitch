@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, String, Table, Text
+from sqlalchemy import Column, DateTime, ForeignKey, String, Table, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -52,3 +52,24 @@ class Article(Base):
     collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     clubs: Mapped[list[Club]] = relationship(secondary=article_clubs, back_populates="articles")
+    translations: Mapped[list["ArticleTranslation"]] = relationship(back_populates="article")
+
+
+class ArticleTranslation(Base):
+    """기사 한 건의 한국어 번역. 원본(articles)은 건드리지 않고 따로 쌓는다 (ADR 0005).
+
+    프롬프트를 바꾸면 새 버전으로 다시 번역하고, 이전 버전 결과는 남긴다 → 기사 1건은 버전당 1행.
+    """
+
+    __tablename__ = "article_translations"
+    __table_args__ = (UniqueConstraint("article_id", "prompt_version"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"))
+    prompt_version: Mapped[str] = mapped_column(String(20))  # 예: v1
+    model: Mapped[str] = mapped_column(String(50))  # 예: gemini-3.5-flash-lite
+    title_ko: Mapped[str] = mapped_column(String(500))
+    summary_ko: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    article: Mapped[Article] = relationship(back_populates="translations")

@@ -210,3 +210,36 @@
 **비용**: 0원.
 
 **다음 할 일**: Vercel에 `DATABASE_URL` 추가 → push → 배포 화면 확인. 그다음 LLM 태깅·번역 선택지 비교.
+
+## 2026-11-14 — 배포가 안 바뀌던 문제 (원인과 해결)
+
+- 증상: `git push`를 해도 `nexpitch.vercel.app`이 며칠째 옛 화면(뉴스 탭 "준비 중", 경기 상세 없음)이었다. Vercel에서는 배포가 Ready였다.
+- 원인: Vercel이 보던 레포가 `jjoonii34/nexpitch`가 아니라 **다른 GitHub 계정(`Junhyuck-lim`)의 `nexpitch` 복사본**이었다. 첫 배포 때 "주소를 붙여 넣는" 가져오기(Import Third-Party Git Repository)를 써서 그 계정에 옛 시점의 복사본이 만들어졌고, 이후 push는 전부 `jjoonii34` 쪽으로 가서 Vercel에 닿지 않았다. Redeploy는 같은 옛 코드를 다시 빌드할 뿐이었다. 이 과정에서 본 "Pro 업그레이드" 안내는 팀 전체 환경변수 화면(주소에 `~`)과 Redeploy 창의 유료 옵션이었고, 결제는 필요 없었다.
+- 해결: Vercel 프로젝트를 새로 만들어 왼쪽 목록의 **Import**로 `jjoonii34/nexpitch`를 연결하고, Root Directory `frontend`, 환경변수 2개(`FOOTBALL_DATA_API_KEY`, `DATABASE_URL`)를 넣었다. 새 주소 `nexpitch-pi.vercel.app`에서 뉴스 탭(50건, 검색 2건, 구단 선택 30건), 경기 상세, 리그 탭이 모두 실데이터로 나오는 것을 바깥에서 확인했다. 화면에 DB 비밀번호가 노출되지 않는 것도 확인.
+- 남은 정리: `nexpitch.vercel.app` 주소는 아직 옛 프로젝트가 쥐고 있다 → 옛 프로젝트 삭제 후 새 프로젝트 Domains에 추가. `Junhyuck-lim/nexpitch` 복사본 레포 삭제.
+- 배운 것: Vercel에서 레포는 반드시 **목록에서 Import**로 연결한다(주소 붙여 넣기 금지). 배포가 안 바뀌면 Settings → Git의 `계정/레포` 이름부터 본다.
+
+## 2026-11-14 — 기사 한국어 번역 (Gemini) + 뉴스 탭 한국어 표시
+
+**무엇을 왜**
+- 영어 기사 제목·요약을 한국어로 번역해 뉴스 탭에 보여준다. 모델은 `gemini-3.5-flash-lite` 무료 티어 (ADR 0005). 선택 이유: AI Studio에서 확인한 무료 한도가 `gemini-3.8-flash`는 분당 5·하루 20회인데 flash-lite는 분당 15·하루 500회라, 296건을 하루 안에 끝낼 수 있는 쪽이다.
+- 호출 1회에 기사 10건을 묶어 보내고 JSON(id, 한국어 제목, 한국어 요약)으로 받는다 (`backend/app/llm/translate.py`). pydantic 스키마를 API에 넘겨 형식을 강제하고, 응답에서 우리가 보낸 id에 해당하는 것만 골라 저장한다.
+- 결과는 새 테이블 `article_translations`에 프롬프트 버전(`v1`)·모델명과 함께 저장한다. 원본 `articles`는 건드리지 않는다. 번역이 없는 기사만 골라 최신순으로 처리하므로 다시 실행해도 같은 기사를 두 번 번역하지 않고, 실패한 묶음은 다음 실행에서 다시 시도한다.
+- 실행: `python -m app.llm.translate [최대 호출 수]`. 시험 호출 1회 뒤 2회(20건)로 품질을 확인하고 나머지를 돌렸다. 번역 예: "Tearful Pochettino says United job was 'difficult to turn down'" → "미국 대표팀 떠나는 포체티노, "맨체스터 유나이티드 직함은 거절하기 어려웠다"며 눈물".
+- 프론트: `lib/news.ts`가 `article_translations`를 LEFT JOIN해 현재 프롬프트 버전의 번역을 붙인다. 카드는 한국어 제목·요약을 보여주고, **영어 원문 제목을 아래에 작게 함께 보여준다** (LLM 번역은 틀릴 수 있으니 확인할 수 있게). 번역 전 기사는 영어로 보이고 "번역 전" 표시가 붙는다. 검색은 한국어·영어 둘 다에서 찾는다 ("맨체스터" 검색 29건 확인).
+- 라이브러리: `google-genai`(Google 공식 SDK). 호출 방식은 새 Interactions API(`client.interactions.create`)다 — 문서에서 확인했고, 기억에 있던 `generate_content` 예시는 문서에 더 이상 없었다.
+- 테스트: 백엔드 9개 추가(가짜 번역 함수로 묶음·중복·실패·한도 처리), 프론트 1개 추가. 전체 백엔드 26개·프론트 16개 통과. lint·빌드 통과.
+
+**실제 실행에서 알게 된 것**
+- 호출 1회가 보통 8초 안팎인데 몇 분씩 걸리는 경우가 있었다 → 클라이언트에 60초 제한을 넣었다 (제한에 걸린 묶음은 다음 실행에서 다시).
+- 무료 티어는 보낸 내용이 Google 제품 개선에 쓰인다. 공개 기사 제목·요약만 보내므로 받아들였다 (ADR 0005).
+
+**틀릴 수 있는 것**
+- 번역 품질은 눈으로 몇 건만 봤다. 선수·구단 이름 표기가 한국 매체와 다를 수 있다 (예: "브라이튼"). 품질 측정은 v1 범위 밖이므로 틀린 번역은 원문 제목으로 확인하는 것이 유일한 안전장치다.
+- 묶음 번역에서 모델이 id를 섞으면 기사와 번역이 어긋날 수 있다. 응답의 id를 그대로 믿는다.
+- 프롬프트 버전은 백엔드(`PROMPT_VERSION`)와 프론트(`lib/news.ts`) 두 곳에 적혀 있다. 올릴 때 둘을 함께 바꿔야 한다.
+- 아직 새 기사가 자동으로 번역되지 않는다. 수집(`app.collect`)과 번역(`app.llm.translate`)을 손으로 돌려야 한다.
+
+**비용**: 0원 (Gemini 무료 티어, 호출 약 32회).
+
+**다음 할 일**: GitHub Actions로 하루 2회 수집 → 번역 자동화. 레포 Secrets에 `GUARDIAN_API_KEY`, `DATABASE_URL`, `GEMINI_API_KEY`가 필요하다.

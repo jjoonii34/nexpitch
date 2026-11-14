@@ -45,8 +45,8 @@ def count(session: Session, table) -> int:
     return session.scalar(select(func.count()).select_from(table))
 
 
-def test_create_tables_makes_three_tables():
-    assert create_tables(create_engine("sqlite://")) == ["article_clubs", "articles", "clubs"]
+def test_create_tables_makes_all_tables():
+    assert create_tables(create_engine("sqlite://")) == ["article_clubs", "article_translations", "articles", "clubs"]
 
 
 def test_save_stores_articles_and_links_club(session):

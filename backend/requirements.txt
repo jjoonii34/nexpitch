@@ -4,3 +4,4 @@ python-dotenv  # .env 파일의 키를 읽기 위해
 pytest         # 테스트 실행
 sqlalchemy     # Python 코드로 테이블을 정의하고 읽고 쓰기 위해 (ADR 0003)
 psycopg[binary]  # PostgreSQL(Neon)에 접속하는 드라이버
+google-genai    # Gemini 호출 (기사 한국어 번역, ADR 0005)

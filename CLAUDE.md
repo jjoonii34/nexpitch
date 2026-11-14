@@ -42,7 +42,7 @@ Claude Code가 지켜야 할 것:
 |---|---|---|
 | 백엔드 | Python, FastAPI, PostgreSQL | 소유자가 뼈대 직접 작성 중 |
 | 프론트 | Next.js | HTMX 대신 선택. 프로덕션 수준이 목표 |
-| LLM | Gemini Flash 계열 무료 티어 (배치), 로컬 Ollama는 테스트용 | 한도·모델명은 실행 전 AI Studio에서 확인 |
+| LLM | Gemini `gemini-3.5-flash-lite` 무료 티어 (배치, ADR 0005) | 한도는 AI Studio에서 확인 (2026-11-14: 분당 15·하루 500). 로컬 Ollama는 테스트용 |
 | 수집 | 가디언 Open Platform API(무료 개발자 키, 비상업) | v1은 가디언만. 매체 RSS·구단 공식 사이트·X API는 v1 이후 검토 |
 | 스케줄 | GitHub Actions cron (하루 2회 배치) | 서버 상주 프로세스 없음 |
 | 배포 | Vercel(프론트), 백엔드는 무료 플랜 중 선택 예정 → ADR 필요 | |
@@ -177,7 +177,7 @@ python -m pytest tests/test_guardian.py -k strip_html
 python -m app.collectors.guardian             # 실제 수집. backend/.env에 GUARDIAN_API_KEY 필요
 ```
 
-환경 파일: `frontend/.env.local`(`FOOTBALL_DATA_API_KEY`, `DATABASE_URL`), `backend/.env`(`GUARDIAN_API_KEY`, `DATABASE_URL`). 각각 커밋된 `.env.example`이 있다. 키 값은 커밋하지도 출력하지도 않는다.
+환경 파일: `frontend/.env.local`(`FOOTBALL_DATA_API_KEY`, `DATABASE_URL`), `backend/.env`(`GUARDIAN_API_KEY`, `DATABASE_URL`, `GEMINI_API_KEY`). 각각 커밋된 `.env.example`이 있다. 키 값은 커밋하지도 출력하지도 않는다.
 
 ## 프론트 구조
 
@@ -213,6 +213,7 @@ lib/football.ts  →  lib/mappers.ts  →  lib/types.ts  →  app/ + components/
 - `parse`는 필수 값이 빠진 기사를 조용히 건너뛴다.
 - 저장(ADR 0003): `app/models/news.py`에 테이블 3개(`clubs`, `articles`, `article_clubs`), `app/db.py`가 `DATABASE_URL`로 접속, `app/storage.py`의 `save_articles`가 `url` 기준으로 중복 없이 저장하고 구단과 연결한다. `python -m app.db`는 없는 테이블을 만든다.
 - 구단 목록은 `<레포 루트>/data/clubs.csv`(이름, 가디언 태그)가 원본이다. `python -m app.clubs`가 `clubs` 테이블을 csv에 맞춘다(빠진 구단은 지우지 않고 `in_premier_league=False`). 가디언 태그는 이름에서 추측할 수 없으니 새 구단은 API로 확인한다.
+- 번역(ADR 0005): `app/llm/translate.py`. `python -m app.llm.translate [최대 호출 수]`가 번역 없는 기사를 최신순으로 10건씩 묶어 Gemini(`gemini-3.5-flash-lite`, Interactions API + pydantic 스키마)에 보내고 `article_translations`에 프롬프트 버전과 함께 저장한다. 네트워크는 `translate_batch`에만 있고 나머지는 순수 함수라 가짜 번역 함수로 테스트한다. `PROMPT_VERSION`을 올리면 `frontend/lib/news.ts`의 같은 상수도 올린다. 무료 한도(분당 15·하루 500, 2026-11-14 확인)는 바뀔 수 있다.
 - 저장 테스트는 메모리 안의 SQLite로 돈다. 그래서 저장 코드에 PostgreSQL 전용 문법을 쓰지 않는다. `DATABASE_URL`에는 비밀번호가 있으니 출력하지 않는다.
 
 ## 작업 규칙 보충

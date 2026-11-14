@@ -45,7 +45,7 @@ async function News({ searchParams }: Pick<PageProps<"/news">, "searchParams">) 
           name="q"
           defaultValue={q ?? ""}
           maxLength={50}
-          placeholder="제목·요약에서 검색 (예: injury, Van Dijk)"
+          placeholder="제목·요약에서 검색 (예: 부상, 살라, Van Dijk)"
           aria-label="뉴스 검색"
           className="min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 py-2 text-sm placeholder:text-muted focus:border-accent focus:outline-none"
         />

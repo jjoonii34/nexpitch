@@ -92,4 +92,6 @@ export interface NewsItem {
   publishedAt: string; // ISO 8601 (UTC)
   source: string; // 매체 (예: guardian)
   clubs: string[]; // 이 기사에 연결된 구단 이름들
+  titleKo: string | null; // 한국어 제목 (번역 전이면 null → 영어 제목을 그대로 보여준다)
+  summaryKo: string | null; // 한국어 요약
 }
