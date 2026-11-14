@@ -1,0 +1,41 @@
+# 하루 2회 뉴스 배치: 20개 구단 기사 수집 → DB 저장 → 한국어 번역 (CLAUDE.md 3번 "GitHub Actions cron").
+# 서버 상주 프로세스 없이, GitHub가 빌려주는 컴퓨터에서 몇 분 돌고 끝난다. 비용 0원 (공개 레포는 Actions 무료).
+name: news-batch
+
+on:
+  schedule:
+    # GitHub cron은 UTC 기준. 한국 시간 08:00 = UTC 23:00(전날), 한국 시간 20:00 = UTC 11:00.
+    - cron: "0 23 * * *"
+    - cron: "0 11 * * *"
+  workflow_dispatch: # Actions 탭에서 "Run workflow" 버튼으로 손으로도 돌릴 수 있다 (확인용)
+
+jobs:
+  collect-and-translate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30 # 번역 호출이 길어져도 무한정 돌지 않게
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      # 키는 레포 Settings → Secrets에 있다. 로그에는 ***로 가려진다.
+      - name: 기사 수집 → DB 저장
+        env:
+          GUARDIAN_API_KEY: ${{ secrets.GUARDIAN_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m app.collect
+
+      - name: 한국어 번역 (최대 30회 호출 = 300건)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m app.llm.translate 30
