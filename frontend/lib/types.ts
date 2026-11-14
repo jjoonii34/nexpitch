@@ -75,3 +75,21 @@ export interface HeadToHead {
   awayWins: number;
   matches: Match[]; // 최신순
 }
+
+/** 뉴스 탭의 구단 선택 칸 하나. */
+export interface Club {
+  id: number;
+  name: string;
+}
+
+/** 뉴스 카드 한 장. 원문 전체가 아니라 제목·요약·링크만 담는다 (본문은 원문 링크로 보낸다). */
+export interface NewsItem {
+  id: number;
+  title: string;
+  summary: string;
+  url: string; // 원문 주소
+  author: string | null; // 바이라인이 없는 기사도 있다
+  publishedAt: string; // ISO 8601 (UTC)
+  source: string; // 매체 (예: guardian)
+  clubs: string[]; // 이 기사에 연결된 구단 이름들
+}

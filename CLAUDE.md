@@ -150,7 +150,7 @@ nexpitch는 프리미어리그 경기 결과·순위·경기 상세를 모바일
 
 레포는 서로 독립된 두 부분으로 나뉜다. 공통 도구나 루트 `package.json`은 없다.
 
-- `frontend/` — Next.js 16 앱. Vercel에 배포한다 (Root Directory = `frontend`, `main`에 push하면 자동 재배포). 서버 컴포넌트가 football-data.org를 직접 호출하며, 요청 경로에 백엔드는 아직 없다 (ADR 0002).
+- `frontend/` — Next.js 16 앱. Vercel에 배포한다 (Root Directory = `frontend`, `main`에 push하면 자동 재배포). 서버 컴포넌트가 football-data.org와 뉴스 DB(Neon)를 직접 읽으며, 요청 경로에 백엔드 서버는 아직 없다 (ADR 0002, 0004).
 - `backend/` — Python 뉴스 파이프라인. 첫 단위인 가디언 수집기만 있다. FastAPI 앱·DB·배포는 아직 없고, 저장이 필요한 기능과 함께 들어온다.
 
 레포의 모든 글(코드 주석, 문서, 화면 문구, 커밋 메시지)은 한국어로 쓴다.
@@ -177,7 +177,7 @@ python -m pytest tests/test_guardian.py -k strip_html
 python -m app.collectors.guardian             # 실제 수집. backend/.env에 GUARDIAN_API_KEY 필요
 ```
 
-환경 파일: `frontend/.env.local`(`FOOTBALL_DATA_API_KEY`), `backend/.env`(`GUARDIAN_API_KEY`, `DATABASE_URL`). 각각 커밋된 `.env.example`이 있다. 키 값은 커밋하지도 출력하지도 않는다.
+환경 파일: `frontend/.env.local`(`FOOTBALL_DATA_API_KEY`, `DATABASE_URL`), `backend/.env`(`GUARDIAN_API_KEY`, `DATABASE_URL`). 각각 커밋된 `.env.example`이 있다. 키 값은 커밋하지도 출력하지도 않는다.
 
 ## 프론트 구조
 
@@ -199,13 +199,16 @@ lib/football.ts  →  lib/mappers.ts  →  lib/types.ts  →  app/ + components/
 - v1은 프리미어리그만 다룬다 (`LEAGUE = "PL"`). 무료 플랜에는 라인업·이벤트·스탯이 없다.
 - 스타일: Tailwind 4. 색은 `app/globals.css`에 정의한 의미 이름을 쓴다 (`bg-surface`, `text-muted`, `border-line`, `text-live`, `bg-win`, `bg-loss`). 본문은 가운데 정렬된 `max-w-xl` 폭이고 하단 탭은 고정이다.
 
+- **뉴스 탭**(ADR 0004): `lib/news.ts`가 Neon을 직접 읽는 유일한 파일이다(`@neondatabase/serverless`, 5분 캐시, 읽기 전용). 화면은 `getClubs`·`getNews(clubId, q)`만 부르고 football.ts와 같은 `Sourced<T>`를 받는다. `DATABASE_URL`이 없으면 샘플 뉴스. SQL은 `backend/app/models/news.py`의 테이블 모양에 맞춰 쓰므로 테이블을 바꾸면 두 곳을 함께 고친다. 검색어 등 사용자 입력은 SQL에 이어 붙이지 않고 자리표시 값으로만 보낸다. 주소창 값 검사와 행 변환은 순수 모듈 `lib/newsMap.ts`에 있다.
+
 **테스트 제약**: 테스트는 번들러 없이 Node가 TypeScript를 직접 실행한다. 그래서 테스트에서 닿는 파일은 실행 값을 import할 때 `.ts` 확장자를 붙여야 하고, `@/` 별칭과 `next/*` import를 쓸 수 없다. `mappers.ts`·`insights.ts`·`dates.ts`가 순수 함수이고 타입만 import하는 이유다. 테스트할 로직은 `lib/`의 순수 모듈에 두고, 네트워크 코드는 `football.ts`에만 둔다.
 
 ## 백엔드 구조
 
 - `app/collectors/base.py`가 `RawArticle`(pydantic)과 `Collector` 규약(`source` 속성 + `collect() -> list[RawArticle]`)을 정의한다. 소스 추가는 이 규약을 따르는 클래스 하나를 더하는 것이고, 기존 코드는 고치지 않는다.
 - 수집기마다 `fetch_raw`(네트워크 호출 + 원본 저장)와 모듈 함수 `parse`(원본 dict → `RawArticle` 목록, 네트워크 없음)를 나눈다. 테스트는 직접 만든 예시 응답으로 `parse`만 검증한다.
-- 원본 응답은 `<레포 루트>/data/raw/<소스>/<YYYY-MM-DD>.json`에 저장한다 (git 제외). 같은 날 다시 실행하면 API를 부르지 않고 파일을 읽는다. 다시 받으려면 `force=True`.
+- 원본 응답은 `<레포 루트>/data/raw/<소스>/<YYYY-MM-DD>/<태그>.json`에 구단(태그)별로 저장한다 (git 제외). 같은 날 다시 실행하면 API를 부르지 않고 파일을 읽는다. 다시 받으려면 `force=True`.
+- 배치: `python -m app.collect`가 프리미어리그 구단을 돌며 수집 → 저장한다(`app/collect.py`). 한 구단이 실패해도 계속하고 구단별 결과를 출력한다. 약 3분 걸린다.
 - 가디언은 API 키를 주소에 붙여 보낸다. 그래서 오류는 상태 코드만 알린다. httpx의 기본 오류나 주소를 그대로 내보내지 않는다.
 - `parse`는 필수 값이 빠진 기사를 조용히 건너뛴다.
 - 저장(ADR 0003): `app/models/news.py`에 테이블 3개(`clubs`, `articles`, `article_clubs`), `app/db.py`가 `DATABASE_URL`로 접속, `app/storage.py`의 `save_articles`가 `url` 기준으로 중복 없이 저장하고 구단과 연결한다. `python -m app.db`는 없는 테이블을 만든다.

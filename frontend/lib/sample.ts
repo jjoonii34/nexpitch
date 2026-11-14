@@ -1,7 +1,7 @@
 // API 키가 없을 때 화면 모양을 확인하기 위한 샘플 데이터.
 // 실제 결과가 아니며, 화면 상단에 "샘플 데이터" 안내가 반드시 함께 표시된다.
 
-import type { Match, Scorer, StandingRow, Team } from "./types";
+import type { Club, Match, NewsItem, Scorer, StandingRow, Team } from "./types";
 
 const team = (id: number, name: string, tla: string): Team => ({ id, name, tla, crest: null });
 
@@ -38,4 +38,35 @@ export const sampleScorers: Scorer[] = [
   { player: "샘플 선수 A", team: LIV, goals: 9, assists: 4 },
   { player: "샘플 선수 B", team: MCI, goals: 8, assists: 1 },
   { player: "샘플 선수 C", team: ARS, goals: 6, assists: 5 },
+];
+
+// ── 뉴스 탭 샘플 (DATABASE_URL이 없을 때) ──
+
+export const sampleClubs: Club[] = [
+  { id: 1, name: "Arsenal" },
+  { id: 2, name: "Liverpool" },
+  { id: 3, name: "Manchester City" },
+];
+
+export const sampleNews: NewsItem[] = [
+  {
+    id: 1,
+    title: "샘플 기사: 리버풀, 미드필더 영입 합의",
+    summary: "실제 기사가 아닙니다. 뉴스 카드의 모양을 확인하기 위한 예시 문장입니다.",
+    url: "https://www.theguardian.com/football",
+    author: "샘플 기자",
+    publishedAt: "2026-11-14T09:30:00Z",
+    source: "sample",
+    clubs: ["Liverpool"],
+  },
+  {
+    id: 2,
+    title: "샘플 기사: 주말 경기 종합",
+    summary: "여러 구단에 걸린 기사는 구단 이름 대신 구단 수로 표시됩니다.",
+    url: "https://www.theguardian.com/football",
+    author: null,
+    publishedAt: "2026-11-13T08:00:00Z",
+    source: "sample",
+    clubs: ["Arsenal", "Liverpool", "Manchester City"],
+  },
 ];

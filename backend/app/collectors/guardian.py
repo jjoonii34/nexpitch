@@ -53,10 +53,14 @@ class GuardianCollector:
         self.tag = tag
         self.page_size = page_size
 
-    def fetch_raw(self, day: date | None = None, force: bool = False) -> dict:
-        """원본 응답을 가져온다. 그날 파일이 이미 있으면 API를 다시 부르지 않고 파일을 읽는다."""
+    def raw_path(self, day: date | None = None) -> Path:
+        """원본 응답을 저장할 파일 위치. 구단(태그)마다 파일이 달라야 서로 덮어쓰지 않는다."""
         day = day or date.today()
-        path = RAW_DIR / f"{day.isoformat()}.json"
+        return RAW_DIR / day.isoformat() / f"{self.tag.replace('/', '-')}.json"
+
+    def fetch_raw(self, day: date | None = None, force: bool = False) -> dict:
+        """원본 응답을 가져온다. 그날 그 태그의 파일이 이미 있으면 API를 다시 부르지 않고 파일을 읽는다."""
+        path = self.raw_path(day)
         if path.exists() and not force:
             return json.loads(path.read_text(encoding="utf-8"))
 
