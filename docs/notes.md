@@ -243,3 +243,20 @@
 **비용**: 0원 (Gemini 무료 티어, 호출 약 32회).
 
 **다음 할 일**: GitHub Actions로 하루 2회 수집 → 번역 자동화. 레포 Secrets에 `GUARDIAN_API_KEY`, `DATABASE_URL`, `GEMINI_API_KEY`가 필요하다.
+
+## 2026-11-14 — GitHub Actions 하루 2회 배치 (수집 → 번역)
+
+**무엇을 왜**
+- `.github/workflows/news-batch.yml`: 한국 시간 08:00·20:00(UTC 23:00·11:00)에 `python -m app.collect` → `python -m app.llm.translate 30`을 돌린다. Actions 탭의 "Run workflow" 버튼으로 손으로도 돌릴 수 있다.
+- 상주 서버 없이 GitHub가 빌려주는 컴퓨터에서 몇 분 돌고 끝난다. 공개 레포라 무료.
+- 키 3개(`GUARDIAN_API_KEY`, `DATABASE_URL`, `GEMINI_API_KEY`)는 레포 Settings → Secrets에 넣고 실행 시 환경변수로 받는다. 코드의 `load_dotenv`는 `.env`가 없으면 아무것도 안 하고 이미 있는 환경변수를 덮어쓰지 않으므로 내 컴퓨터(.env)와 Actions(Secrets)가 같은 코드로 돈다.
+- 번역 호출은 한 번 실행에 30회(300건)로 막았다 — 하루 2회여도 하루 한도(500회) 안에 들어오게.
+
+**틀릴 수 있는 것**
+- 첫 수동 실행(09:46 UTC 시작)의 결과는 아직 확인 중이다. 단계별 성공 여부를 확인한 뒤 roadmap을 갱신한다.
+- Actions 컴퓨터는 매번 새것이라 `data/raw/` 파일 캐시가 없다 → 매 실행 가디언을 20회 호출한다 (하루 40회, 무료 한도는 여전히 확인 필요).
+- 예약 실행은 GitHub 사정으로 몇 분~수십 분 늦을 수 있다.
+
+**비용**: 0원.
+
+**다음 할 일**: 첫 실행 결과 확인 → 두 번째 뉴스 소스(BBC Sport 구단별 RSS) 또는 LLM 태깅 중 순서 결정.
