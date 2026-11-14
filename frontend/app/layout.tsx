@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
-import BottomTabs from "@/components/BottomTabs";
+import { Suspense } from "react";
+import BottomTabs, { Tabs } from "@/components/BottomTabs";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -23,7 +24,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="ko" className={`${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full font-sans">
         <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col pb-20">{children}</div>
-        <BottomTabs />
+        <Suspense fallback={<Tabs pathname={null} />}>
+          <BottomTabs />
+        </Suspense>
       </body>
     </html>
   );

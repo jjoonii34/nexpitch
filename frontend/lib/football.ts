@@ -1,11 +1,11 @@
-// 경기 데이터 창구. 화면은 이 파일의 함수 3개만 부른다.
+// 경기 데이터 창구. 화면은 football-data.org를 직접 부르지 않고 이 파일의 get… 함수만 부른다.
 // 서버 컴포넌트에서만 불리고, 키 이름에 NEXT_PUBLIC_ 접두사가 없어 API 키가 브라우저로 새지 않는다.
 
 import { cacheLife } from "next/cache";
 import { addDays, toKstDate } from "./dates";
-import { mapMatch, mapScorers, mapStandings } from "./mappers";
+import { mapMatch, mapMatchDetail, mapScorers, mapStandings } from "./mappers";
 import { sampleMatches, sampleScorers, sampleStandings } from "./sample";
-import type { Match, Scorer, Sourced, StandingRow } from "./types";
+import type { Match, MatchDetail, Scorer, Sourced, StandingRow } from "./types";
 
 const BASE = "https://api.football-data.org/v4";
 const LEAGUE = "PL"; // v1은 프리미어리그만. 리그 확장은 v2 (docs/roadmap.md)
@@ -79,4 +79,29 @@ export function getScorers(): Promise<Sourced<Scorer[]>> {
     async () => mapScorers(await call(`/competitions/${LEAGUE}/scorers?limit=10`, 300)),
     sampleScorers,
   );
+}
+
+/** 경기 하나의 상세 정보를 가져온다. 키가 없으면 샘플 경기에서 같은 id를 찾아 보여준다. */
+export function getMatch(id: number): Promise<Sourced<MatchDetail | null>> {
+  const sample = sampleMatches(toKstDate(new Date())).find((m) => m.id === id);
+  return withFallback(
+    async () => mapMatchDetail(await call(`/matches/${id}`, 60)),
+    sample ? { ...sample, halfHome: null, halfAway: null, referee: null, venue: null } : null,
+  );
+}
+
+/** 이번 시즌에 끝난 리그 경기 전체. 한 번 받아 두고 모든 상세 화면이 '최근 흐름' 계산에 함께 쓴다 (호출 수 절약). */
+export function getSeasonResults(): Promise<Sourced<Match[]>> {
+  return withFallback(async () => {
+    const json = (await call(`/competitions/${LEAGUE}/matches?status=FINISHED`, 300)) as { matches?: unknown[] };
+    return (json.matches ?? []).map(mapMatch);
+  }, []);
+}
+
+/** 두 팀의 과거 맞대결(최대 10경기). 지난 경기 기록은 잘 변하지 않으므로 1시간 캐시한다. */
+export function getHeadToHeadMatches(id: number): Promise<Sourced<Match[]>> {
+  return withFallback(async () => {
+    const json = (await call(`/matches/${id}/head2head?limit=10`, 3600)) as { matches?: unknown[] };
+    return (json.matches ?? []).map(mapMatch);
+  }, []);
 }

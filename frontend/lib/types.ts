@@ -51,3 +51,27 @@ export interface Sourced<T> {
   source: "live" | "sample";
   error?: string;
 }
+
+/** 경기 상세 화면용. 목록용 Match에 상세 호출에서만 오는 정보를 더한다. */
+export interface MatchDetail extends Match {
+  halfHome: number | null; // 전반 종료 시 홈 점수
+  halfAway: number | null;
+  referee: string | null; // 주심
+  venue: string | null; // 경기장 (무료 플랜에서는 대부분 비어 옴)
+}
+
+export type Result = "W" | "D" | "L"; // 승 / 무 / 패
+
+/** 한 팀 입장에서 본 지난 경기 한 건 (최근 흐름 표시용). */
+export interface FormEntry {
+  result: Result;
+  match: Match;
+}
+
+/** 두 팀 맞대결 집계. home/away는 '지금 보고 있는 경기'의 홈·원정 팀 기준이다. */
+export interface HeadToHead {
+  homeWins: number;
+  draws: number;
+  awayWins: number;
+  matches: Match[]; // 최신순
+}

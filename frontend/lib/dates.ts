@@ -48,3 +48,8 @@ export function formatLongDate(ymd: string): string {
     weekday: "short",
   }).format(new Date(`${ymd}T00:00:00Z`));
 }
+
+/** 지난 경기 날짜용 '2026년 4월 25일' 형식 (한국 시간 기준, 연도 포함). */
+export function formatKstFullDate(iso: string): string {
+  return new Intl.DateTimeFormat("ko-KR", { timeZone: KST, year: "numeric", month: "long", day: "numeric" }).format(new Date(iso));
+}

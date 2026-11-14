@@ -2,7 +2,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { addDays, isValidYmd, toKstDate } from "./dates.ts";
-import { groupByCompetition, mapMatch, mapStandings, mapStatus } from "./mappers.ts";
+import { headToHead, recentForm, resultFor } from "./insights.ts";
+import { groupByCompetition, mapMatch, mapMatchDetail, mapStandings, mapStatus } from "./mappers.ts";
 
 test("mapStatus: API 상태를 화면 상태로 줄인다", () => {
   assert.equal(mapStatus("TIMED"), "scheduled");
@@ -59,4 +60,67 @@ test("날짜: UTC 밤 경기는 한국 날짜로 다음 날이다", () => {
   assert.equal(addDays("2026-11-30", 1), "2026-12-01");
   assert.equal(isValidYmd("2026-02-30"), false);
   assert.equal(isValidYmd("2026-11-14"), true);
+});
+
+/** 테스트용 끝난 경기 만들기: 홈팀 id, 원정팀 id, 점수, 날짜. */
+const played = (id: number, home: number, away: number, hs: number, as: number, day: string) =>
+  mapMatch({
+    id,
+    utcDate: `2026-${day}T15:00:00Z`,
+    status: "FINISHED",
+    homeTeam: { id: home, shortName: `T${home}` },
+    awayTeam: { id: away, shortName: `T${away}` },
+    score: { fullTime: { home: hs, away: as } },
+  });
+
+test("mapMatchDetail: 전반 스코어와 주심을 꺼낸다", () => {
+  const d = mapMatchDetail({
+    id: 1,
+    utcDate: "2026-11-07T12:30:00Z",
+    status: "FINISHED",
+    homeTeam: {},
+    awayTeam: {},
+    score: { fullTime: { home: 1, away: 0 }, halfTime: { home: 0, away: 0 } },
+    referees: [{ name: "보조", type: "ASSISTANT" }, { name: "주심", type: "REFEREE" }],
+    venue: null,
+  });
+  assert.equal(d.halfHome, 0);
+  assert.equal(d.referee, "주심");
+  assert.equal(d.venue, null);
+});
+
+test("resultFor: 홈·원정 어느 쪽이든 그 팀 입장의 결과를 준다", () => {
+  const m = played(1, 10, 20, 2, 1, "11-01");
+  assert.equal(resultFor(m, 10), "W");
+  assert.equal(resultFor(m, 20), "L");
+  assert.equal(resultFor(m, 99), null); // 남의 경기
+  assert.equal(resultFor(played(2, 10, 20, 1, 1, "11-02"), 20), "D");
+});
+
+test("recentForm: 기준 시각 이전 경기만, 최신순으로 count개", () => {
+  const season = [
+    played(1, 10, 20, 1, 0, "10-01"),
+    played(2, 30, 10, 2, 2, "10-08"),
+    played(3, 10, 40, 0, 3, "10-15"),
+    played(4, 10, 50, 5, 0, "11-20"), // 기준 이후 → 제외
+  ];
+  const form = recentForm(season, 10, "2026-11-01T00:00:00Z", 2);
+  assert.deepEqual(form.map((f) => f.result), ["L", "D"]);
+});
+
+test("headToHead: 홈·원정이 뒤바뀐 경기도 팀 기준으로 세고, 지금 경기는 뺀다", () => {
+  const h2h = headToHead(
+    [
+      played(1, 10, 20, 1, 0, "11-07"), // 지금 보는 경기 → 제외
+      played(2, 20, 10, 1, 1, "05-11"),
+      played(3, 10, 20, 1, 2, "03-01"),
+      played(4, 20, 10, 0, 3, "01-01"), // 원정에서 10번 팀이 이김
+      played(5, 10, 30, 9, 0, "02-01"), // 다른 상대 → 제외
+    ],
+    10,
+    20,
+    1,
+  );
+  assert.deepEqual([h2h.homeWins, h2h.draws, h2h.awayWins], [1, 1, 1]);
+  assert.deepEqual(h2h.matches.map((m) => m.id), [2, 3, 4]);
 });

@@ -1,7 +1,7 @@
 // football-data.org 응답 → 우리 타입 변환기.
 // 네트워크 없이 테스트할 수 있도록 순수 함수로만 구성한다 (입력이 같으면 출력이 같다).
 
-import type { Match, MatchStatus, Scorer, StandingRow, Team } from "./types";
+import type { Match, MatchDetail, MatchStatus, Scorer, StandingRow, Team } from "./types";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- 외부 API 응답은 형태를 보장받지 못하므로 any로 받고 여기서 검증한다 */
 
@@ -48,6 +48,18 @@ export function mapMatch(m: any): Match {
     away: mapTeam(m.awayTeam),
     homeScore: m.score?.fullTime?.home ?? null,
     awayScore: m.score?.fullTime?.away ?? null,
+  };
+}
+
+/** 경기 상세 응답을 변환한다. 목록용 변환에 전반 스코어·주심·경기장을 더한다. */
+export function mapMatchDetail(m: any): MatchDetail {
+  const referee = (m.referees ?? []).find((r: any) => r.type === "REFEREE") ?? m.referees?.[0];
+  return {
+    ...mapMatch(m),
+    halfHome: m.score?.halfTime?.home ?? null,
+    halfAway: m.score?.halfTime?.away ?? null,
+    referee: referee?.name ?? null,
+    venue: m.venue ?? null,
   };
 }
 

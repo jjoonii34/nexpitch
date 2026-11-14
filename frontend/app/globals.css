@@ -10,6 +10,8 @@
   --muted: #8b93a5;
   --accent: #ff7a45;
   --live: #ff4d5e;
+  --win: #1f9d6b;
+  --loss: #d64550;
   color-scheme: dark;
 }
 
@@ -23,6 +25,8 @@
     --muted: #677086;
     --accent: #e85a1f;
     --live: #e0283b;
+    --win: #15845a;
+    --loss: #c7303d;
     color-scheme: light;
   }
 }
@@ -36,6 +40,8 @@
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-live: var(--live);
+  --color-win: var(--win);
+  --color-loss: var(--loss);
   --font-sans: var(--font-geist-sans), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 }
 
