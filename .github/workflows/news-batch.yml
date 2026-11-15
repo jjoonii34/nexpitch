@@ -1,4 +1,4 @@
-# 하루 2회 뉴스 배치: 20개 구단 기사 수집 → DB 저장 → 한국어 번역 (CLAUDE.md 3번 "GitHub Actions cron").
+# 하루 2회 뉴스 배치: 20개 구단 기사 수집 → DB 저장 → 24시간 지난 기사 정리 (CLAUDE.md 3번 "GitHub Actions cron").
 # 서버 상주 프로세스 없이, GitHub가 빌려주는 컴퓨터에서 몇 분 돌고 끝난다. 비용 0원 (공개 레포는 Actions 무료).
 name: news-batch
 
@@ -34,8 +34,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: python -m app.collect
 
-      - name: 한국어 번역 (최대 30회 호출 = 300건)
+      # 가디언 약관: OP Content는 24시간 안에 다시 받거나 지운다 (ADR 0006). 수집에서 다시 본 기사는 남고, 안 보인 기사는 지운다.
+      - name: 24시간 넘게 안 보인 기사 정리
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python -m app.llm.translate 30
+        run: python -m app.cleanup

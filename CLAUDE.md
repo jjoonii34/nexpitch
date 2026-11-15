@@ -42,8 +42,8 @@ Claude Code가 지켜야 할 것:
 |---|---|---|
 | 백엔드 | Python, FastAPI, PostgreSQL | 소유자가 뼈대 직접 작성 중 |
 | 프론트 | Next.js | HTMX 대신 선택. 프로덕션 수준이 목표 |
-| LLM | Gemini `gemini-3.5-flash-lite` 무료 티어 (배치, ADR 0005) | 한도는 AI Studio에서 확인 (2026-11-14: 분당 15·하루 500). 로컬 Ollama는 테스트용 |
-| 수집 | 가디언 Open Platform API(무료 개발자 키, 비상업) | v1은 가디언만. 매체 RSS·구단 공식 사이트·X API는 v1 이후 검토 |
+| LLM | Gemini `gemini-3.5-flash-lite` 무료 티어 (배치) | 한도는 AI Studio에서 확인 (2026-11-14: 분당 15·하루 500). **가디언 기사에는 쓸 수 없다**(약관, ADR 0006). 어디에 쓸지 재설계 중 |
+| 수집 | 가디언 Open Platform API(무료 개발자 키, 비상업, 초당 1·하루 500회) | **원문 그대로 24시간만 표시** (ADR 0006). BBC RSS는 약관상 불가(2026-11-16 확인). 새 소스는 약관 확인 → ADR 뒤에만 |
 | 스케줄 | GitHub Actions cron (하루 2회 배치) | 서버 상주 프로세스 없음 |
 | 배포 | Vercel(프론트), 백엔드는 무료 플랜 중 선택 예정 → ADR 필요 | |
 | 컨테이너 | Docker (v1 후반), k8s는 v2 | |
@@ -63,7 +63,7 @@ Claude Code가 지켜야 할 것:
 - 티어 1 후보: 로마노, 온스테인, 폴 조이스, 제임스 피어스. 커뮤니티 티어표를 그대로 복사하지 않는다.
 - 매 시즌 승격·강등으로 구단 목록이 바뀐다 → 구단은 하드코딩 금지, 테이블.
 
-### 4-3. LLM 태깅·요약
+### 4-3. LLM 태깅·요약 (가디언 기사에는 적용 불가 — ADR 0006. 허용 소스가 생길 때까지 보류)
 - 기사당 LLM 호출 1회, JSON 스키마 강제 출력: 카테고리(이적/부상/구단·오너/무관), 관련 구단·선수, 이적 단계(관심/협상/합의/메디컬/오피셜), 확실성(공식/보도/루머), 한국어 한 줄 요약.
 - 프롬프트는 버전 문자열로 관리하고 결과에 버전을 함께 저장한다.
 - 요약은 사용자별이 아니라 **이벤트(이적 건·이슈 건) 단위**로 만든다. 사용자 피드는 필터·정렬만.
@@ -124,6 +124,7 @@ nexpitch/
 
 - 소유자 승인 없이 유료 API·유료 플랜 사용
 - 약관 위반 소지가 있는 스크래핑 (X 스크래퍼 등)
+- **외부 콘텐츠를 저장·가공(번역·LLM·NLP)하기 전에 약관을 읽지 않는 것** — 소스마다 약관 조항을 ADR에 인용한다 (2026-11-16 가디언 건에서 배움)
 - v2·v3 기능 선구현
 - 근거 설명 없는 라이브러리 추가
 - README에 측정하지 않은 성능 수치 작성
@@ -199,7 +200,7 @@ lib/football.ts  →  lib/mappers.ts  →  lib/types.ts  →  app/ + components/
 - v1은 프리미어리그만 다룬다 (`LEAGUE = "PL"`). 무료 플랜에는 라인업·이벤트·스탯이 없다.
 - 스타일: Tailwind 4. 색은 `app/globals.css`에 정의한 의미 이름을 쓴다 (`bg-surface`, `text-muted`, `border-line`, `text-live`, `bg-win`, `bg-loss`). 본문은 가운데 정렬된 `max-w-xl` 폭이고 하단 탭은 고정이다.
 
-- **뉴스 탭**(ADR 0004): `lib/news.ts`가 Neon을 직접 읽는 유일한 파일이다(`@neondatabase/serverless`, 5분 캐시, 읽기 전용). 화면은 `getClubs`·`getNews(clubId, q)`만 부르고 football.ts와 같은 `Sourced<T>`를 받는다. `DATABASE_URL`이 없으면 샘플 뉴스. SQL은 `backend/app/models/news.py`의 테이블 모양에 맞춰 쓰므로 테이블을 바꾸면 두 곳을 함께 고친다. 검색어 등 사용자 입력은 SQL에 이어 붙이지 않고 자리표시 값으로만 보낸다. 주소창 값 검사와 행 변환은 순수 모듈 `lib/newsMap.ts`에 있다.
+- **뉴스 탭**(ADR 0004, 0006): `lib/news.ts`가 Neon을 직접 읽는 유일한 파일이다(`@neondatabase/serverless`, 5분 캐시, 읽기 전용). 가디언 약관대로 제목·요약·바이라인을 고치지 않고 보여주며, 페이지에 `GuardianAttribution`(로고·저작권)을 반드시 둔다. 화면은 `getClubs`·`getNews(clubId, q)`만 부르고 football.ts와 같은 `Sourced<T>`를 받는다. `DATABASE_URL`이 없으면 샘플 뉴스. SQL은 `backend/app/models/news.py`의 테이블 모양에 맞춰 쓰므로 테이블을 바꾸면 두 곳을 함께 고친다. 검색어 등 사용자 입력은 SQL에 이어 붙이지 않고 자리표시 값으로만 보낸다. 주소창 값 검사와 행 변환은 순수 모듈 `lib/newsMap.ts`에 있다.
 
 **테스트 제약**: 테스트는 번들러 없이 Node가 TypeScript를 직접 실행한다. 그래서 테스트에서 닿는 파일은 실행 값을 import할 때 `.ts` 확장자를 붙여야 하고, `@/` 별칭과 `next/*` import를 쓸 수 없다. `mappers.ts`·`insights.ts`·`dates.ts`가 순수 함수이고 타입만 import하는 이유다. 테스트할 로직은 `lib/`의 순수 모듈에 두고, 네트워크 코드는 `football.ts`에만 둔다.
 
@@ -208,12 +209,12 @@ lib/football.ts  →  lib/mappers.ts  →  lib/types.ts  →  app/ + components/
 - `app/collectors/base.py`가 `RawArticle`(pydantic)과 `Collector` 규약(`source` 속성 + `collect() -> list[RawArticle]`)을 정의한다. 소스 추가는 이 규약을 따르는 클래스 하나를 더하는 것이고, 기존 코드는 고치지 않는다.
 - 수집기마다 `fetch_raw`(네트워크 호출 + 원본 저장)와 모듈 함수 `parse`(원본 dict → `RawArticle` 목록, 네트워크 없음)를 나눈다. 테스트는 직접 만든 예시 응답으로 `parse`만 검증한다.
 - 원본 응답은 `<레포 루트>/data/raw/<소스>/<YYYY-MM-DD>/<태그>.json`에 구단(태그)별로 저장한다 (git 제외). 같은 날 다시 실행하면 API를 부르지 않고 파일을 읽는다. 다시 받으려면 `force=True`.
-- 배치: `python -m app.collect`가 프리미어리그 구단을 돌며 수집 → 저장한다(`app/collect.py`). 한 구단이 실패해도 계속하고 구단별 결과를 출력한다. 약 3분 걸린다.
+- 배치: `python -m app.collect`가 프리미어리그 구단을 돌며 수집 → 저장한다(`app/collect.py`). 한 구단이 실패해도 계속하고 구단별 결과를 출력한다. 약 3분 걸린다. 이어서 `python -m app.cleanup`이 24시간 넘게 가디언 응답에 안 보인 기사를 지운다(약관, ADR 0006). 다시 본 기사는 `save_articles`가 `collected_at`을 갱신한다.
 - 가디언은 API 키를 주소에 붙여 보낸다. 그래서 오류는 상태 코드만 알린다. httpx의 기본 오류나 주소를 그대로 내보내지 않는다.
 - `parse`는 필수 값이 빠진 기사를 조용히 건너뛴다.
 - 저장(ADR 0003): `app/models/news.py`에 테이블 3개(`clubs`, `articles`, `article_clubs`), `app/db.py`가 `DATABASE_URL`로 접속, `app/storage.py`의 `save_articles`가 `url` 기준으로 중복 없이 저장하고 구단과 연결한다. `python -m app.db`는 없는 테이블을 만든다.
 - 구단 목록은 `<레포 루트>/data/clubs.csv`(이름, 가디언 태그)가 원본이다. `python -m app.clubs`가 `clubs` 테이블을 csv에 맞춘다(빠진 구단은 지우지 않고 `in_premier_league=False`). 가디언 태그는 이름에서 추측할 수 없으니 새 구단은 API로 확인한다.
-- 번역(ADR 0005): `app/llm/translate.py`. `python -m app.llm.translate [최대 호출 수]`가 번역 없는 기사를 최신순으로 10건씩 묶어 Gemini(`gemini-3.5-flash-lite`, Interactions API + pydantic 스키마)에 보내고 `article_translations`에 프롬프트 버전과 함께 저장한다. 네트워크는 `translate_batch`에만 있고 나머지는 순수 함수라 가짜 번역 함수로 테스트한다. `PROMPT_VERSION`을 올리면 `frontend/lib/news.ts`의 같은 상수도 올린다. 무료 한도(분당 15·하루 500, 2026-11-14 확인)는 바뀔 수 있다.
+- 번역(ADR 0005 → **폐기**, ADR 0006): `app/llm/translate.py`는 남아 있지만 배치·화면에서 쓰지 않는다. 가디언 기사는 LLM에 넣으면 안 된다. 원래 설명: `python -m app.llm.translate [최대 호출 수]`가 번역 없는 기사를 최신순으로 10건씩 묶어 Gemini(`gemini-3.5-flash-lite`, Interactions API + pydantic 스키마)에 보내고 `article_translations`에 프롬프트 버전과 함께 저장한다. 네트워크는 `translate_batch`에만 있고 나머지는 순수 함수라 가짜 번역 함수로 테스트한다. `PROMPT_VERSION`을 올리면 `frontend/lib/news.ts`의 같은 상수도 올린다. 무료 한도(분당 15·하루 500, 2026-11-14 확인)는 바뀔 수 있다.
 - 저장 테스트는 메모리 안의 SQLite로 돈다. 그래서 저장 코드에 PostgreSQL 전용 문법을 쓰지 않는다. `DATABASE_URL`에는 비밀번호가 있으니 출력하지 않는다.
 
 ## 작업 규칙 보충

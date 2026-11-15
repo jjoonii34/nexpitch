@@ -82,7 +82,7 @@ export interface Club {
   name: string;
 }
 
-/** 뉴스 카드 한 장. 원문 전체가 아니라 제목·요약·링크만 담는다 (본문은 원문 링크로 보낸다). */
+/** 뉴스 카드 한 장. 제목·요약·바이라인은 가디언이 준 그대로 보여준다 (약관: 수정·번역 금지, ADR 0006). 본문은 원문 링크로. */
 export interface NewsItem {
   id: number;
   title: string;
@@ -92,6 +92,4 @@ export interface NewsItem {
   publishedAt: string; // ISO 8601 (UTC)
   source: string; // 매체 (예: guardian)
   clubs: string[]; // 이 기사에 연결된 구단 이름들
-  titleKo: string | null; // 한국어 제목 (번역 전이면 null → 영어 제목을 그대로 보여준다)
-  summaryKo: string | null; // 한국어 요약
 }

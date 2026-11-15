@@ -16,15 +16,7 @@ export function mapNewsRow(row: any): NewsItem {
     publishedAt: row.published_at,
     source: row.source ?? "",
     clubs: Array.isArray(row.clubs) ? row.clubs : [],
-    titleKo: row.title_ko || null,
-    summaryKo: row.summary_ko || null,
   };
-}
-
-/** 카드에 보여줄 제목·요약. 번역이 있으면 한국어, 없으면 영어 원문. */
-export function displayText(item: NewsItem): { title: string; summary: string; translated: boolean } {
-  if (item.titleKo) return { title: item.titleKo, summary: item.summaryKo ?? item.summary, translated: true };
-  return { title: item.title, summary: item.summary, translated: false };
 }
 
 /** DB의 구단 행 하나를 변환한다. */

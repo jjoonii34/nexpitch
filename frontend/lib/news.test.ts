@@ -1,7 +1,7 @@
 // 실행: npm test  (뉴스 탭의 순수 함수만 검사한다. DB에는 접속하지 않는다)
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { clubsLabel, displayText, likePattern, mapNewsRow, newsHref, parseClubId, parseQuery } from "./newsMap.ts";
+import { clubsLabel, likePattern, mapNewsRow, newsHref, parseClubId, parseQuery } from "./newsMap.ts";
 
 test("mapNewsRow: DB 행을 뉴스 카드 모양으로 바꾼다", () => {
   const item = mapNewsRow({
@@ -53,12 +53,4 @@ test("newsHref: 구단과 검색어를 주소로 만든다", () => {
   assert.equal(newsHref(null, null), "/news");
   assert.equal(newsHref(14, null), "/news?club=14");
   assert.equal(newsHref(14, "van dijk"), "/news?club=14&q=van+dijk");
-});
-
-test("displayText: 번역이 있으면 한국어, 없으면 영어 원문", () => {
-  const base = mapNewsRow({ id: 1, url: "u", title: "Salah signs", body_or_summary: "Deal done", clubs: [] });
-  assert.deepEqual(displayText(base), { title: "Salah signs", summary: "Deal done", translated: false });
-  const ko = mapNewsRow({ id: 1, url: "u", title: "Salah signs", body_or_summary: "Deal done", title_ko: "살라 계약", summary_ko: "계약 완료", clubs: [] });
-  assert.deepEqual(displayText(ko), { title: "살라 계약", summary: "계약 완료", translated: true });
-  assert.equal(mapNewsRow({ id: 1, url: "u", title_ko: "", clubs: [] }).titleKo, null); // 빈 문자열은 번역 없음으로 본다
 });

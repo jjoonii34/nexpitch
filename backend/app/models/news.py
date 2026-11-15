@@ -49,6 +49,7 @@ class Article(Base):
     author: Mapped[str | None] = mapped_column(String(200))
     published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     source: Mapped[str] = mapped_column(String(50))
+    # 마지막으로 가디언 응답에서 확인한 시각. 다시 보이면 갱신한다 → 24시간 넘게 안 보인 기사는 지운다 (약관, ADR 0006).
     collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     clubs: Mapped[list[Club]] = relationship(secondary=article_clubs, back_populates="articles")

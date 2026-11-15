@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import ClubStrip from "@/components/ClubStrip";
+import GuardianAttribution from "@/components/GuardianAttribution";
 import Loading from "@/components/Loading";
 import NewsCard from "@/components/NewsCard";
 import PageHeader from "@/components/PageHeader";
@@ -21,7 +22,7 @@ export default function NewsPage({ searchParams }: PageProps<"/news">) {
   );
 }
 
-/** 구단을 고르거나 단어로 검색해 기사를 최신순으로 본다. 기사는 backend 배치가 DB에 넣어 둔 것이다. */
+/** 구단을 고르거나 단어로 검색해 기사를 최신순으로 본다. 기사는 backend 배치가 DB에 넣어 둔 것이고, 가디언 약관대로 원문 그대로 보여준다 (ADR 0006). */
 async function News({ searchParams }: Pick<PageProps<"/news">, "searchParams">) {
   await connection(); // 요청 시점에 렌더링한다 (빌드 때의 기사 목록이 굳지 않도록)
   const params = await searchParams;
@@ -45,7 +46,7 @@ async function News({ searchParams }: Pick<PageProps<"/news">, "searchParams">) 
           name="q"
           defaultValue={q ?? ""}
           maxLength={50}
-          placeholder="제목·요약에서 검색 (예: 부상, 살라, Van Dijk)"
+          placeholder="제목·요약에서 검색 (영어, 예: injury, Salah)"
           aria-label="뉴스 검색"
           className="min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 py-2 text-sm placeholder:text-muted focus:border-accent focus:outline-none"
         />
@@ -56,6 +57,7 @@ async function News({ searchParams }: Pick<PageProps<"/news">, "searchParams">) 
 
       <ClubStrip clubs={clubs.data} selected={clubId} q={q} />
       <SourceNotice source={isSample ? "sample" : "live"} error={clubs.error ?? news.error} missing="DATABASE_URL" />
+      <GuardianAttribution />
 
       {q !== null && (
         <p className="px-4 pb-2 text-xs text-muted">

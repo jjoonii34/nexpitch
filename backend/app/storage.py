@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.collectors.base import RawArticle
-from app.models.news import Article, Club
+from app.models.news import Article, Club, utc_now
 
 
 @dataclass
@@ -20,7 +20,7 @@ class SaveResult:
 def save_articles(session: Session, raws: list[RawArticle], club: Club) -> SaveResult:
     """한 구단의 태그로 수집한 기사들을 저장하고 그 구단과 연결한다.
 
-    이미 있는 기사(url 일치)는 다시 저장하지 않고 연결만 추가한다
+    이미 있는 기사(url 일치)는 다시 저장하지 않고 연결만 추가하며, '마지막 확인 시각'을 갱신한다
     — 리버풀 태그로 저장된 기사가 아스널 태그로 또 들어오면 기사는 1건, 연결은 2건이 된다.
     """
     result = SaveResult()
@@ -29,6 +29,8 @@ def save_articles(session: Session, raws: list[RawArticle], club: Club) -> SaveR
 
     for raw in raws:
         article = known.get(raw.url)
+        if article is not None:
+            article.collected_at = utc_now()  # 아직 가디언이 내보내는 기사 → 보관 기한 연장 (ADR 0006)
         if article is None:
             article = Article(
                 url=raw.url,

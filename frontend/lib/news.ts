@@ -1,6 +1,7 @@
 // 뉴스 데이터 창구. 화면은 DB를 직접 부르지 않고 이 파일의 get… 함수만 부른다 (ADR 0004).
 // 서버 컴포넌트에서만 불리고, 변수 이름에 NEXT_PUBLIC_ 접두사가 없어 DB 주소가 브라우저로 새지 않는다.
 // 기사를 넣는 쪽은 backend/의 배치이고, 여기서는 읽기만 한다.
+// 가디언 약관(ADR 0006): 제목·요약·바이라인을 고치지 않고 그대로 보여주고, 번역·LLM 가공을 하지 않는다.
 
 import { neon } from "@neondatabase/serverless";
 import { cacheLife } from "next/cache";
@@ -10,7 +11,6 @@ import type { Club, NewsItem, Sourced } from "./types";
 
 const PAGE_SIZE = 50; // 한 화면에 보여줄 최대 기사 수
 const CACHE_SECONDS = 300; // 기사는 하루 2회만 들어오므로 5분 캐시로 충분하다
-const PROMPT_VERSION = "v1"; // backend/app/llm/translate.py의 PROMPT_VERSION과 같아야 한다. 올리면 여기도 올린다.
 
 type DbResult = { ok: true; rows: unknown[] } | { ok: false; reason: string };
 
@@ -46,19 +46,15 @@ async function cachedNews(clubId: number | null, pattern: string | null): Promis
     const sql = neon(process.env.DATABASE_URL ?? "");
     const rows = await sql`
       SELECT a.id, a.title, a.body_or_summary, a.url, a.author, a.source,
-             t.title_ko, t.summary_ko,
              to_char(a.published_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS published_at,
              (SELECT array_agg(c.name ORDER BY c.name)
                 FROM article_clubs ac JOIN clubs c ON c.id = ac.club_id
                WHERE ac.article_id = a.id) AS clubs
         FROM articles a
-        -- 한국어 번역은 따로 쌓인다(ADR 0005). 현재 프롬프트 버전의 것만 붙이고, 없으면 영어로 보여준다.
-        LEFT JOIN article_translations t ON t.article_id = a.id AND t.prompt_version = ${PROMPT_VERSION}::text
        WHERE (${clubId}::int IS NULL
               OR EXISTS (SELECT 1 FROM article_clubs ac WHERE ac.article_id = a.id AND ac.club_id = ${clubId}::int))
          AND (${pattern}::text IS NULL
-              OR a.title ILIKE ${pattern}::text OR a.body_or_summary ILIKE ${pattern}::text
-              OR t.title_ko ILIKE ${pattern}::text OR t.summary_ko ILIKE ${pattern}::text)
+              OR a.title ILIKE ${pattern}::text OR a.body_or_summary ILIKE ${pattern}::text)
        ORDER BY a.published_at DESC
        LIMIT ${PAGE_SIZE}`;
     return { ok: true, rows };

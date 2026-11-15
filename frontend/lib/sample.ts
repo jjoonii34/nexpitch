@@ -58,8 +58,6 @@ export const sampleNews: NewsItem[] = [
     publishedAt: "2026-11-14T09:30:00Z",
     source: "sample",
     clubs: ["Liverpool"],
-    titleKo: null,
-    summaryKo: null,
   },
   {
     id: 2,
@@ -70,7 +68,5 @@ export const sampleNews: NewsItem[] = [
     publishedAt: "2026-11-13T08:00:00Z",
     source: "sample",
     clubs: ["Arsenal", "Liverpool", "Manchester City"],
-    titleKo: "샘플 기사: 주말 경기 종합 (번역 예시)",
-    summaryKo: "번역이 있는 기사는 한국어로 보이고, 영어 원문 제목은 아래에 작게 함께 보입니다.",
   },
 ];
