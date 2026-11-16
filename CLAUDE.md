@@ -72,6 +72,7 @@ Claude Code가 지켜야 할 것:
 ### 4-4. 품질 측정 (2026-11-16 부활 — 대상이 '뉴스 요약'에서 '경기 예측'으로 바뀜)
 - 정답 = 실제 경기 결과. 통계 모델·LLM·결합 세 가지의 승무패 확률을 같은 지표(Brier score 등)로 비교한다.
 - LLM의 역할은 요약기가 아니라 **가설 생성기**(선발·전술 가설) → 통계로 역검증. "최적 11명" 같은 증명 불가한 주장은 하지 않는다.
+- 구현: ADR 0008의 기준선 + README 결과 표. 지표·분리 방식은 그 ADR을 따른다.
 - 아래는 원래 설계 메모(뉴스 요약 기준)이며 참고용이다.
 - `eval/` 모듈은 다른 프로젝트로 추출될 예정 → 입력을 "추천 목록 + 정답 + 카탈로그 + 인기도"로만 받게 설계. 앱 내부 모델에 의존 금지.
 - 측정 항목: 태깅 정확도(직접 라벨링한 테스트셋 50~100개), 요약 사실 오류율, 추천 혼잡도·인기 편향, 파싱 실패율, 비용·지연.
@@ -221,6 +222,7 @@ lib/football.ts  →  lib/mappers.ts  →  lib/types.ts  →  app/ + components/
 - 구단 목록은 `<레포 루트>/data/clubs.csv`(이름, 가디언 태그)가 원본이다. `python -m app.clubs`가 `clubs` 테이블을 csv에 맞춘다(빠진 구단은 지우지 않고 `in_premier_league=False`). 가디언 태그는 이름에서 추측할 수 없으니 새 구단은 API로 확인한다.
 - 번역(ADR 0005 → **폐기**, ADR 0006): `app/llm/translate.py`는 남아 있지만 배치·화면에서 쓰지 않는다. 가디언 기사는 LLM에 넣으면 안 된다. 원래 설명: `python -m app.llm.translate [최대 호출 수]`가 번역 없는 기사를 최신순으로 10건씩 묶어 Gemini(`gemini-3.5-flash-lite`, Interactions API + pydantic 스키마)에 보내고 `article_translations`에 프롬프트 버전과 함께 저장한다. 네트워크는 `translate_batch`에만 있고 나머지는 순수 함수라 가짜 번역 함수로 테스트한다. `PROMPT_VERSION`을 올리면 `frontend/lib/news.ts`의 같은 상수도 올린다. 무료 한도(분당 15·하루 500, 2026-11-14 확인)는 바뀔 수 있다.
 - 분석 데이터(ADR 0007): `app/models/analysis.py` 테이블 8개(id는 API-Football id), `app/collectors/api_football.py`(네트워크는 `ApiFootballClient.get` 하나, 나머지 순수 변환), `app/analysis_store.py`(저장·덮어쓰기, 팀·선수 미리 읽기), `app/analysis_collect.py`(하루 예산 안에서 '아직 없는 것'부터, `python -m app.analysis_collect [호출 수]`). 무료 한도 하루 100·분당 10회, 호출 사이 7초. 원본은 `raw_responses`에.
+- 분석 모델(ADR 0008): `app/analysis/` — `elo.py`, `dataset.py`(`load_matches` → `build_features`, 특성은 경기 전 기록만), `models.py`(constant·elo·features), `evaluate.py`(brier·log_loss·accuracy·time_split), `run.py`(`python -m app.analysis.run [평가 시즌]`). 모델 비교는 항상 같은 평가 시즌·같은 지표로. 숫자가 바뀌면 README 결과 표와 ADR 0008을 갱신한다.
 - 저장 테스트는 메모리 안의 SQLite로 돈다. 그래서 저장 코드에 PostgreSQL 전용 문법을 쓰지 않는다. `DATABASE_URL`에는 비밀번호가 있으니 출력하지 않는다.
 
 ## 작업 규칙 보충

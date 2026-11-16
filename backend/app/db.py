@@ -18,7 +18,9 @@ def to_sqlalchemy_url(url: str) -> str:
 def get_engine() -> Engine:
     """DATABASE_URL로 접속 엔진을 만든다. 주소에 비밀번호가 들어 있으므로 주소는 어디에도 출력하지 않는다."""
     # pool_pre_ping: 호출 사이에 몇 초 쉬는 배치에서 Neon이 연결을 끊은 적이 있어, 쓰기 전에 연결이 살았는지 확인하고 아니면 다시 연다.
-    return create_engine(to_sqlalchemy_url(require_env("DATABASE_URL")), pool_pre_ping=True)
+    # prepare_threshold=None: Neon의 -pooler 주소(PgBouncer)는 psycopg의 '준비된 문장(prepared statement)'을 지원하지 않아,
+    # 같은 질의를 5번 넘게 보내면 "server closed the connection unexpectedly"로 끊겼다 (2026-11-16 수집 배치에서 두 번 겪음).
+    return create_engine(to_sqlalchemy_url(require_env("DATABASE_URL")), pool_pre_ping=True, connect_args={"prepare_threshold": None})
 
 
 def create_tables(engine: Engine) -> list[str]:

@@ -5,3 +5,5 @@ pytest         # 테스트 실행
 sqlalchemy     # Python 코드로 테이블을 정의하고 읽고 쓰기 위해 (ADR 0003)
 psycopg[binary]  # PostgreSQL(Neon)에 접속하는 드라이버
 google-genai    # Gemini 호출 (기사 한국어 번역, ADR 0005)
+pandas         # 경기 데이터를 표로 다루고 시즌별·팀별 특성을 만들기 위해 (ADR 0008)
+scikit-learn   # 로지스틱 회귀·Brier score 등 표준 구현 (직접 짜지 않기 위해, ADR 0008)
