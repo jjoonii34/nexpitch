@@ -1,6 +1,6 @@
 # ⚽ nexpitch
 
-> **"LLM은 스포츠 데이터 분석가 역할을 할 수 있는가?"** — 프리미어리그 20개 구단의 경기 데이터 위에서 통계 모델과 LLM이 같은 문제(경기 결과 예측)를 풀게 하고, 누가 얼마나 맞히는지 앱이 스스로 측정하는 AI 기반 축구 앱.
+> **"LLM은 스포츠 데이터 분석가 역할을 할 수 있는가?"** — 프리미어리그 20개 구단의 경기 데이터 위에서 통계 모델과 LLM이 같은 문제(경기 결과 예측)를 풀게 하고, 누가 얼마나 맞히는지 앱이 스스로 측정하는 AI 기반 축구 앱
 
 [![Next.js](https://img.shields.io/badge/Next.js_16-000?logo=nextdotjs&logoColor=fff)](frontend)
 [![Python](https://img.shields.io/badge/Python_3.13-3776AB?logo=python&logoColor=fff)](backend)
@@ -11,7 +11,7 @@
 [![news-batch](https://github.com/jjoonii34/nexpitch/actions/workflows/news-batch.yml/badge.svg)](https://github.com/jjoonii34/nexpitch/actions/workflows/news-batch.yml)
 [![analysis-batch](https://github.com/jjoonii34/nexpitch/actions/workflows/analysis-batch.yml/badge.svg)](https://github.com/jjoonii34/nexpitch/actions/workflows/analysis-batch.yml)
 
-**데모** → https://nexpitch-pi.vercel.app (모바일 화면 기준, 다크 모드 기본) · **비용 0원** · 1인 개발 · 2026-11-14 시작
+**데모** → https://nexpitch-pi.vercel.app · 
 
 ---
 
