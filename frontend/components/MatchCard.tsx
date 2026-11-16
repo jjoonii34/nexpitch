@@ -1,20 +1,12 @@
 import Link from "next/link";
 import { formatKstTime } from "@/lib/dates";
-import type { Match, MatchStatus } from "@/lib/types";
+import { STATUS_LABEL, isLiveStatus } from "@/lib/labels";
+import type { Match } from "@/lib/types";
 import Crest from "./Crest";
-
-const STATUS_LABEL: Record<MatchStatus, string> = {
-  scheduled: "예정",
-  live: "진행 중",
-  halftime: "하프타임",
-  finished: "종료",
-  postponed: "연기",
-  cancelled: "취소",
-};
 
 /** 경기 한 줄: 왼쪽에 시간·상태, 가운데 두 팀, 오른쪽에 점수. 누르면 경기 상세로 간다. */
 export default function MatchCard({ match }: { match: Match }) {
-  const isLive = match.status === "live" || match.status === "halftime";
+  const isLive = isLiveStatus(match.status);
   const hasScore = match.homeScore !== null && match.awayScore !== null;
   const homeWon = match.status === "finished" && hasScore && match.homeScore! > match.awayScore!;
   const awayWon = match.status === "finished" && hasScore && match.awayScore! > match.homeScore!;

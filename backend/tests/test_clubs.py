@@ -1,21 +1,9 @@
 """구단 목록 맞추기 테스트. 메모리 안의 SQLite를 쓴다."""
 
-import pytest
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from app.clubs import read_clubs, sync_clubs
-from app.db import create_tables
 from app.models.news import Club
-
-
-@pytest.fixture
-def session():
-    """테스트마다 빈 DB를 새로 만든다."""
-    engine = create_engine("sqlite://")
-    create_tables(engine)
-    with Session(engine) as s:
-        yield s
 
 
 def test_clubs_csv_has_20_unique_clubs():

@@ -1,44 +1,13 @@
 """기사 저장 테스트. 메모리 안의 SQLite를 써서 실제 DB(Neon)에 접속하지 않는다."""
 
-from datetime import datetime, timezone
-
-import pytest
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
-from app.collectors.base import RawArticle
 from app.db import create_tables, to_sqlalchemy_url
-from app.models.news import Article, Club, article_clubs
+from app.models.news import Article, article_clubs
 from app.storage import save_articles
-
-
-@pytest.fixture
-def session():
-    """테스트마다 빈 DB를 새로 만든다 (테스트끼리 서로 영향을 주지 않게)."""
-    engine = create_engine("sqlite://")
-    create_tables(engine)
-    with Session(engine) as s:
-        yield s
-
-
-def raw(url: str, title: str = "제목") -> RawArticle:
-    """테스트용 기사 만들기."""
-    return RawArticle(
-        title=title,
-        body_or_summary="요약",
-        url=url,
-        author="Andy Hunter",
-        published_at=datetime(2026, 11, 14, 9, 30, tzinfo=timezone.utc),
-        source="guardian",
-    )
-
-
-def club(session: Session, name: str) -> Club:
-    """테스트용 구단 만들기."""
-    c = Club(name=name, guardian_tag=f"football/{name.lower()}")
-    session.add(c)
-    session.commit()
-    return c
+from tests.conftest import make_club as club
+from tests.conftest import make_raw as raw
 
 
 def count(session: Session, table) -> int:

@@ -200,6 +200,7 @@ lib/football.ts  →  lib/mappers.ts  →  lib/types.ts  →  app/ + components/
 - **한국 시간과 UTC**: 사용자는 한국 날짜로 보고 API는 UTC로 답한다. `getMatches`는 전날~당일을 조회한 뒤 한국 날짜로 거른다. 날짜 계산은 직접 하지 말고 `lib/dates.ts`의 함수를 쓴다.
 - **화면 작성 패턴**: 기본 export는 `<Suspense fallback={<Loading/>}>`로 감싼 동기 껍데기다. 그 안의 async 컴포넌트는 `await connection()`으로 시작하고(오늘 날짜와 스코어가 빌드 때 값으로 굳지 않도록), 이어서 `params`·`searchParams`를 await한다. 주소를 읽는 `BottomTabs`도 같은 이유로 레이아웃에서 Suspense로 감싼다. 감싸지 않으면 동적 경로가 빌드되지 않는다.
 - v1은 프리미어리그만 다룬다 (`LEAGUE = "PL"`). 무료 플랜에는 라인업·이벤트·스탯이 없다.
+- 공용 조각: 둥근 섹션은 `components/Card.tsx`, 순위표는 `components/StandingsTable.tsx`(경기 상세는 `compact`), 상태 문구·진행 중 판정·득실차 서식은 `lib/labels.ts`(순수 함수). 경기 상세의 조각은 `components/match/`. 같은 마크업을 두 번 쓰게 되면 여기로 뺀다.
 - 스타일: Tailwind 4. 색은 `app/globals.css`에 정의한 의미 이름을 쓴다 (`bg-surface`, `text-muted`, `border-line`, `text-live`, `bg-win`, `bg-loss`). 본문은 가운데 정렬된 `max-w-xl` 폭이고 하단 탭은 고정이다.
 
 - **뉴스 탭**(ADR 0004, 0006): `lib/news.ts`가 Neon을 직접 읽는 유일한 파일이다(`@neondatabase/serverless`, 5분 캐시, 읽기 전용). 가디언 약관대로 제목·요약·바이라인을 고치지 않고 보여주며, 페이지에 `GuardianAttribution`(로고·저작권)을 반드시 둔다. 화면은 `getClubs`·`getNews(clubId, q)`만 부르고 football.ts와 같은 `Sourced<T>`를 받는다. `DATABASE_URL`이 없으면 샘플 뉴스. SQL은 `backend/app/models/news.py`의 테이블 모양에 맞춰 쓰므로 테이블을 바꾸면 두 곳을 함께 고친다. 검색어 등 사용자 입력은 SQL에 이어 붙이지 않고 자리표시 값으로만 보낸다. 주소창 값 검사와 행 변환은 순수 모듈 `lib/newsMap.ts`에 있다.
@@ -208,6 +209,8 @@ lib/football.ts  →  lib/mappers.ts  →  lib/types.ts  →  app/ + components/
 
 ## 백엔드 구조
 
+- 경로와 환경변수는 `app/settings.py`에서만 다룬다: `BACKEND_DIR`·`RAW_DIR`·`CLUBS_CSV`, `load_env()`, `require_env("이름")`. 다른 모듈은 `Path(__file__)`·`load_dotenv`·`os.environ`을 직접 쓰지 않는다.
+- 테스트 공용 재료는 `tests/conftest.py`: 메모리 SQLite `session` fixture, `make_club`·`make_raw`·`make_article`, 고정 시각 `NOW`. 새 테스트는 이것부터 쓴다.
 - `app/collectors/base.py`가 `RawArticle`(pydantic)과 `Collector` 규약(`source` 속성 + `collect() -> list[RawArticle]`)을 정의한다. 소스 추가는 이 규약을 따르는 클래스 하나를 더하는 것이고, 기존 코드는 고치지 않는다.
 - 수집기마다 `fetch_raw`(네트워크 호출 + 원본 저장)와 모듈 함수 `parse`(원본 dict → `RawArticle` 목록, 네트워크 없음)를 나눈다. 테스트는 직접 만든 예시 응답으로 `parse`만 검증한다.
 - 원본 응답은 `<레포 루트>/data/raw/<소스>/<YYYY-MM-DD>/<태그>.json`에 구단(태그)별로 저장한다 (git 제외). 같은 날 다시 실행하면 API를 부르지 않고 파일을 읽는다. 다시 받으려면 `force=True`.

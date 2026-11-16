@@ -1,9 +1,11 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
+import Card from "@/components/Card";
 import Crest from "@/components/Crest";
 import Loading from "@/components/Loading";
 import PageHeader from "@/components/PageHeader";
 import SourceNotice from "@/components/SourceNotice";
+import StandingsTable from "@/components/StandingsTable";
 import { getScorers, getStandings } from "@/lib/football";
 
 export const metadata = { title: "리그 · nexpitch" };
@@ -28,45 +30,11 @@ async function League() {
       <PageHeader title="리그" sub="Premier League" />
       <SourceNotice source={isSample ? "sample" : "live"} error={standings.error ?? scorers.error} />
 
-      <section className="mx-3 mb-3 overflow-hidden rounded-2xl bg-surface">
-        <h2 className="border-b border-line px-4 py-2.5 text-sm font-bold">순위</h2>
-        <table className="w-full text-sm tabular-nums">
-          <thead className="text-xs text-muted">
-            <tr>
-              <th scope="col" className="w-9 py-2 pl-3 text-left font-medium">#</th>
-              <th scope="col" className="py-2 text-left font-medium">팀</th>
-              <th scope="col" className="w-8 py-2 text-center font-medium">경기</th>
-              <th scope="col" className="w-7 py-2 text-center font-medium">승</th>
-              <th scope="col" className="w-7 py-2 text-center font-medium">무</th>
-              <th scope="col" className="w-7 py-2 text-center font-medium">패</th>
-              <th scope="col" className="w-10 py-2 text-center font-medium">득실</th>
-              <th scope="col" className="w-10 py-2 pr-3 text-right font-medium">승점</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {standings.data.map((row) => (
-              <tr key={row.team.id}>
-                <td className="py-2.5 pl-3 text-muted">{row.position}</td>
-                <td className="py-2.5">
-                  <span className="flex items-center gap-2">
-                    <Crest team={row.team} size={20} />
-                    <span className="truncate">{row.team.name}</span>
-                  </span>
-                </td>
-                <td className="text-center">{row.played}</td>
-                <td className="text-center">{row.won}</td>
-                <td className="text-center">{row.draw}</td>
-                <td className="text-center">{row.lost}</td>
-                <td className="text-center">{row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}</td>
-                <td className="pr-3 text-right font-bold">{row.points}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+      <Card title="순위">
+        <StandingsTable rows={standings.data} />
+      </Card>
 
-      <section className="mx-3 mb-3 overflow-hidden rounded-2xl bg-surface">
-        <h2 className="border-b border-line px-4 py-2.5 text-sm font-bold">득점 순위</h2>
+      <Card title="득점 순위">
         <ol className="divide-y divide-line">
           {scorers.data.map((s, i) => (
             <li key={`${s.player}-${s.team.id}`} className="flex items-center gap-3 px-3 py-2.5 text-sm">
@@ -81,7 +49,7 @@ async function League() {
             </li>
           ))}
         </ol>
-      </section>
+      </Card>
     </main>
   );
 }

@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -114,7 +114,7 @@ def translate_pending(
         report.calls += 1
         try:
             output = translate(batch)
-        except (ValidationError, Exception) as error:  # 호출 실패·JSON 깨짐 → 이 묶음은 다음 실행에서 다시
+        except Exception as error:  # 호출 실패·JSON 깨짐(ValidationError 포함) → 이 묶음은 다음 실행에서 다시
             report.errors.append(f"{type(error).__name__}: {str(error)[:120]}")
             if "429" in str(error):  # 한도 초과면 더 보내 봐야 소용없다
                 report.errors.append("한도 초과(429)로 중단. 나머지는 다음 실행에서.")
@@ -146,12 +146,12 @@ if __name__ == "__main__":
     # 직접 실행: python -m app.llm.translate [최대 호출 수]
     import sys
 
-    from dotenv import load_dotenv
     from google import genai
 
-    from app.db import BACKEND_DIR, get_engine
+    from app.db import get_engine
+    from app.settings import load_env
 
-    load_dotenv(BACKEND_DIR / ".env")  # GEMINI_API_KEY를 genai.Client()가 읽는다
+    load_env()  # GEMINI_API_KEY를 genai.Client()가 읽는다
     # 응답이 안 오는 호출이 배치 전체를 멈추지 않도록 60초 제한(밀리초 단위). 실제로 2번째 묶음이 몇 분간 멈춘 적이 있다.
     client = genai.Client(http_options={"timeout": 60_000})
     max_calls = int(sys.argv[1]) if len(sys.argv) > 1 else None

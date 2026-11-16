@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
+import Card from "@/components/Card";
 import DateStrip from "@/components/DateStrip";
 import MatchCard from "@/components/MatchCard";
 import PageHeader from "@/components/PageHeader";
@@ -38,14 +39,13 @@ async function Matches({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
         <p className="px-4 py-16 text-center text-sm text-muted">이 날은 경기가 없습니다.</p>
       ) : (
         groups.map((group) => (
-          <section key={group.competition} className="mx-3 mb-3 overflow-hidden rounded-2xl bg-surface">
-            <h2 className="border-b border-line px-4 py-2.5 text-sm font-bold">{group.competition}</h2>
+          <Card key={group.competition} title={group.competition}>
             <ul className="divide-y divide-line">
               {group.matches.map((m) => (
                 <MatchCard key={m.id} match={m} />
               ))}
             </ul>
-          </section>
+          </Card>
         ))
       )}
     </main>

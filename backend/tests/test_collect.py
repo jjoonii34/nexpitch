@@ -1,28 +1,25 @@
 """배치(구단별 수집 → 저장) 테스트. 가짜 수집기와 메모리 안의 SQLite를 써서 네트워크가 필요 없다."""
 
-from datetime import date, datetime, timezone
+from datetime import date
 
 import pytest
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.clubs import sync_clubs
 from app.collect import collect_all
 from app.collectors.base import RawArticle
 from app.collectors.guardian import GuardianCollector
-from app.db import create_tables
 from app.models.news import Article, Club
+from tests.conftest import make_raw
 
 
 @pytest.fixture
-def session():
-    """구단 3곳이 등록된 빈 DB. 헐 시티는 강등된 상태로 둔다."""
-    engine = create_engine("sqlite://")
-    create_tables(engine)
-    with Session(engine) as s:
-        sync_clubs(s, [("Arsenal", "football/arsenal"), ("Liverpool", "football/liverpool"), ("Hull City", "football/hullcity")])
-        sync_clubs(s, [("Arsenal", "football/arsenal"), ("Liverpool", "football/liverpool")])
-        yield s
+def session(session: Session):
+    """공용 빈 DB에 구단 3곳을 등록한다. 헐 시티는 강등된 상태로 둔다."""
+    sync_clubs(session, [("Arsenal", "football/arsenal"), ("Liverpool", "football/liverpool"), ("Hull City", "football/hullcity")])
+    sync_clubs(session, [("Arsenal", "football/arsenal"), ("Liverpool", "football/liverpool")])
+    return session
 
 
 class FakeCollector:
@@ -37,8 +34,7 @@ class FakeCollector:
     def collect(self) -> list[RawArticle]:
         if self.broken:
             raise RuntimeError("가디언 API 응답 오류 (500)")
-        when = datetime(2026, 11, 14, 9, 30, tzinfo=timezone.utc)
-        return [RawArticle(title="t", body_or_summary="s", url=u, author=None, published_at=when, source="fake") for u in self.urls]
+        return [make_raw(u, author=None) for u in self.urls]
 
 
 def test_collects_only_premier_league_clubs_and_shares_common_article(session):

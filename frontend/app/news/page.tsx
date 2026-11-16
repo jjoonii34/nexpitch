@@ -2,6 +2,7 @@ import Form from "next/form";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import Card from "@/components/Card";
 import ClubStrip from "@/components/ClubStrip";
 import GuardianAttribution from "@/components/GuardianAttribution";
 import Loading from "@/components/Loading";
@@ -71,13 +72,13 @@ async function News({ searchParams }: Pick<PageProps<"/news">, "searchParams">) 
       {news.data.length === 0 ? (
         <p className="px-4 py-16 text-center text-sm text-muted">조건에 맞는 뉴스가 없습니다.</p>
       ) : (
-        <section className="mx-3 mb-3 overflow-hidden rounded-2xl bg-surface">
+        <Card>
           <ul className="divide-y divide-line">
             {news.data.map((item) => (
               <NewsCard key={item.id} item={item} />
             ))}
           </ul>
-        </section>
+        </Card>
       )}
     </main>
   );

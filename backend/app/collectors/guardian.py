@@ -1,21 +1,19 @@
-"""가디언 Open Platform 수집기. 리버풀 태그 기사를 받아 RawArticle로 바꾼다."""
+"""가디언 Open Platform 수집기. 구단 태그(예: football/liverpool)의 최신 기사를 받아 RawArticle로 바꾼다."""
 
 import html
 import json
-import os
 import re
 from datetime import date
 from pathlib import Path
 
 import httpx
-from dotenv import load_dotenv
 from pydantic import ValidationError
 
 from app.collectors.base import RawArticle
+from app.settings import RAW_DIR, require_env
 
 API_URL = "https://content.guardianapis.com/search"
-BACKEND_DIR = Path(__file__).resolve().parents[2]  # backend/
-RAW_DIR = BACKEND_DIR.parent / "data" / "raw" / "guardian"  # nexpitch/data/raw/guardian
+GUARDIAN_RAW_DIR = RAW_DIR / "guardian"  # nexpitch/data/raw/guardian
 
 
 def strip_html(text: str) -> str:
@@ -56,7 +54,7 @@ class GuardianCollector:
     def raw_path(self, day: date | None = None) -> Path:
         """원본 응답을 저장할 파일 위치. 구단(태그)마다 파일이 달라야 서로 덮어쓰지 않는다."""
         day = day or date.today()
-        return RAW_DIR / day.isoformat() / f"{self.tag.replace('/', '-')}.json"
+        return GUARDIAN_RAW_DIR / day.isoformat() / f"{self.tag.replace('/', '-')}.json"
 
     def fetch_raw(self, day: date | None = None, force: bool = False) -> dict:
         """원본 응답을 가져온다. 그날 그 태그의 파일이 이미 있으면 API를 다시 부르지 않고 파일을 읽는다."""
@@ -64,11 +62,7 @@ class GuardianCollector:
         if path.exists() and not force:
             return json.loads(path.read_text(encoding="utf-8"))
 
-        load_dotenv(BACKEND_DIR / ".env")
-        key = os.environ.get("GUARDIAN_API_KEY")
-        if not key:
-            raise RuntimeError("GUARDIAN_API_KEY가 없습니다. backend/.env를 확인하세요.")
-
+        key = require_env("GUARDIAN_API_KEY")
         response = httpx.get(
             API_URL,
             params={

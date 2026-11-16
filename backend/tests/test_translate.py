@@ -1,12 +1,10 @@
 """번역 묶음 처리 테스트. 가짜 번역 함수와 메모리 안의 SQLite를 써서 Gemini를 부르지 않는다."""
 
-from datetime import datetime, timezone
+from datetime import timedelta
 
-import pytest
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db import create_tables
 from app.llm.translate import (
     BATCH_SIZE,
     PROMPT_VERSION,
@@ -19,33 +17,12 @@ from app.llm.translate import (
     translate_pending,
 )
 from app.models.news import Article, ArticleTranslation
-
-
-@pytest.fixture
-def session():
-    """기사 n건이 들어 있는 빈 DB를 만드는 도우미를 돌려준다."""
-    engine = create_engine("sqlite://")
-    create_tables(engine)
-    with Session(engine) as s:
-        yield s
+from tests.conftest import NOW, make_article
 
 
 def add_articles(session: Session, n: int) -> list[Article]:
     """제목이 'Title k'인 기사 n건. 최신이 k가 큰 쪽."""
-    articles = [
-        Article(
-            url=f"https://a/{k}",
-            title=f"Title {k}",
-            body_or_summary=f"Summary {k}",
-            author=None,
-            published_at=datetime(2026, 11, 1, k % 24, tzinfo=timezone.utc),
-            source="guardian",
-        )
-        for k in range(1, n + 1)
-    ]
-    session.add_all(articles)
-    session.commit()
-    return articles
+    return [make_article(session, f"https://a/{k}", f"Title {k}", published_at=NOW + timedelta(minutes=k)) for k in range(1, n + 1)]
 
 
 def fake_translate(batch: list[Article]) -> TranslationOutput:
@@ -61,7 +38,7 @@ def test_chunk_splits_into_batches():
 def test_build_input_contains_ids_and_text(session):
     (a,) = add_articles(session, 1)
     text = build_input([a])
-    assert f'"id": {a.id}' in text and "Title 1" in text and "Summary 1" in text
+    assert f'"id": {a.id}' in text and "Title 1" in text and "요약" in text
 
 
 def test_pick_valid_drops_unknown_duplicate_and_empty():

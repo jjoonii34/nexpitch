@@ -8,8 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.news import Club
-
-CLUBS_CSV = Path(__file__).resolve().parents[2] / "data" / "clubs.csv"  # nexpitch/data/clubs.csv
+from app.settings import CLUBS_CSV
 
 
 @dataclass

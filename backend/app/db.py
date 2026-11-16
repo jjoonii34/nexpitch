@@ -1,14 +1,9 @@
 """DB 접속 창구. 접속 주소는 backend/.env의 DATABASE_URL에서 읽는다."""
 
-import os
-from pathlib import Path
-
-from dotenv import load_dotenv
 from sqlalchemy import Engine, create_engine, inspect
 
 from app.models.news import Base
-
-BACKEND_DIR = Path(__file__).resolve().parents[1]  # backend/
+from app.settings import require_env
 
 
 def to_sqlalchemy_url(url: str) -> str:
@@ -21,11 +16,7 @@ def to_sqlalchemy_url(url: str) -> str:
 
 def get_engine() -> Engine:
     """DATABASE_URL로 접속 엔진을 만든다. 주소에 비밀번호가 들어 있으므로 주소는 어디에도 출력하지 않는다."""
-    load_dotenv(BACKEND_DIR / ".env")
-    url = os.environ.get("DATABASE_URL", "").strip()
-    if not url:
-        raise RuntimeError("DATABASE_URL이 없습니다. backend/.env를 확인하세요.")
-    return create_engine(to_sqlalchemy_url(url))
+    return create_engine(to_sqlalchemy_url(require_env("DATABASE_URL")))
 
 
 def create_tables(engine: Engine) -> list[str]:

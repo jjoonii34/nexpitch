@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { addDays, isValidYmd, toKstDate } from "./dates.ts";
 import { headToHead, recentForm, resultFor } from "./insights.ts";
+import { formatGoalDifference, isLiveStatus } from "./labels.ts";
 import { groupByCompetition, mapMatch, mapMatchDetail, mapStandings, mapStatus } from "./mappers.ts";
 
 test("mapStatus: API 상태를 화면 상태로 줄인다", () => {
@@ -123,4 +124,12 @@ test("headToHead: 홈·원정이 뒤바뀐 경기도 팀 기준으로 세고, �
   );
   assert.deepEqual([h2h.homeWins, h2h.draws, h2h.awayWins], [1, 1, 1]);
   assert.deepEqual(h2h.matches.map((m) => m.id), [2, 3, 4]);
+});
+
+test("labels: 득실차 부호와 진행 중 판정", () => {
+  assert.equal(formatGoalDifference(5), "+5");
+  assert.equal(formatGoalDifference(0), "0");
+  assert.equal(formatGoalDifference(-3), "-3");
+  assert.equal(isLiveStatus("halftime"), true);
+  assert.equal(isLiveStatus("finished"), false);
 });
