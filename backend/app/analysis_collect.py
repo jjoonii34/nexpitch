@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.analysis_store import save_fixtures, save_lineups, save_player_stats, save_raw, save_team_stats
@@ -133,17 +133,13 @@ def collect(session: Session, client: ApiFootballClient, budget: Budget, today: 
 
 def progress(session: Session) -> str:
     """시즌별로 '끝난 경기 중 셋 다 채운 경기 / 전체'를 한 줄로."""
-    rows = session.execute(
-        select(
-            Fixture.season,
-            func.count(),
-            func.sum(func.cast(Fixture.lineups_at.is_not(None) & Fixture.team_stats_at.is_not(None) & Fixture.player_stats_at.is_not(None), type_=None)),
-        )
-        .where(Fixture.status == FINISHED)
-        .group_by(Fixture.season)
-        .order_by(Fixture.season.desc())
-    ).all()
-    return " | ".join(f"{season}: {int(done or 0)}/{total}" for season, total, done in rows) or "경기 없음"
+    rows = session.execute(select(Fixture.season, Fixture.lineups_at.is_not(None) & Fixture.team_stats_at.is_not(None) & Fixture.player_stats_at.is_not(None)).where(Fixture.status == FINISHED)).all()
+    done: dict[int, int] = {}
+    total: dict[int, int] = {}
+    for season, complete in rows:
+        total[season] = total.get(season, 0) + 1
+        done[season] = done.get(season, 0) + (1 if complete else 0)
+    return " | ".join(f"{s}: {done[s]}/{total[s]}" for s in sorted(total, reverse=True)) or "경기 없음"
 
 
 if __name__ == "__main__":
