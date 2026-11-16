@@ -311,3 +311,23 @@
 **비용**: 0원.
 
 **다음 할 일**: API-Football 약관 확인 → ADR 0007 → 1단계 수집기.
+
+## 2026-11-16 — 1단계 데이터 기반: API-Football 수집기·테이블·매일 배치 (ADR 0007)
+
+**무엇을 왜**
+- 테이블 8개(`app/models/analysis.py`): `teams`(API 팀 ↔ 우리 구단, 새 테이블로 연결해 기존 테이블 변경 없음), `players`, `fixtures`(경기·결과 + 라인업·팀 스탯·선수 스탯을 **언제 받았는지** 열 3개), `lineups`/`lineup_players`, `team_match_stats`(xG 포함), `player_match_stats`(평점 포함), `raw_responses`(원본 JSON — Actions 컴퓨터는 매번 새것이라 파일 대신 DB). id는 API-Football id 그대로 → 다시 받으면 덮어쓴다.
+- 수집기(`app/collectors/api_football.py`): 네트워크는 `get` 하나, 응답→우리 모양은 순수 함수 4개. API가 `"55%"`, `"2.43"`, `None`을 섞어 보내서 `to_int`/`to_float`로 다듬는다.
+- 배치(`app/analysis_collect.py`): 하루 예산(호출 수) 안에서 (1) 안 받은 과거 시즌 경기 목록 (2) 어제·오늘 경기(현재 시즌은 3일 창만 조회 가능) (3) 끝난 경기 중 빠진 데이터를 최신 시즌부터 채움. 한도 초과면 그날은 멈춘다. "받았는지"는 `*_at` 열과 `raw_responses`로 판단해 재실행이 안전하다.
+- `analysis-batch.yml`: 매일 09:30(KST) 90회. Secret `API_FOOTBALL_KEY` 추가됨.
+- 첫 실행: 시즌 3개 경기 목록 1,140건(요청 3회). 그 뒤 Neon이 7초 쉬는 사이 연결을 끊어 중단 → `pool_pre_ping` + 팀·선수 미리 읽기로 고치고 재실행. 재실행은 "이어서" 돌았다(설계 확인). 테스트 9개 추가, 전체 38개 통과.
+- 도메인: `nexpitch.vercel.app`은 다른 Vercel 팀의 옛 프로젝트가 쥐고 있어("already assigned to another team") 포기하고 `nexpitch-pi.vercel.app`을 공식 주소로 확정. README·CLAUDE.md 수정.
+
+**틀릴 수 있는 것**
+- API-Football 약관은 요약본으로만 확인했다(원문 링크 없음). 선수 이미지는 쓰지 않는다.
+- 2024 시즌 뒤 강등된 4팀(레스터·사우샘프턴·웨스트햄·울브스)은 `clubs`에 없어 `club_id`가 비어 있다. 분석에는 `teams` 기준으로 쓰면 문제없다.
+- 하루 90회로 38일 — 그 사이 GitHub cron 지연·누락이 있으면 더 걸린다.
+- Neon 무료 용량은 확인 못 함. 원본 JSON 포함 약 100MB 추산, 지금 10MB.
+
+**비용**: 0원.
+
+**다음 할 일**: 2단계 통계 기준선 — 모델·라이브러리·평가 방식 선택지 → 승인 → 구현 (데이터가 일부만 있어도 설계·테스트 시작 가능).

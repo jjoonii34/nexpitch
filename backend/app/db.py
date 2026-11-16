@@ -2,6 +2,7 @@
 
 from sqlalchemy import Engine, create_engine, inspect
 
+import app.models.analysis  # noqa: F401  — 분석 테이블을 Base에 등록하기 위해 (create_all이 알아야 한다)
 from app.models.news import Base
 from app.settings import require_env
 
@@ -16,7 +17,8 @@ def to_sqlalchemy_url(url: str) -> str:
 
 def get_engine() -> Engine:
     """DATABASE_URL로 접속 엔진을 만든다. 주소에 비밀번호가 들어 있으므로 주소는 어디에도 출력하지 않는다."""
-    return create_engine(to_sqlalchemy_url(require_env("DATABASE_URL")))
+    # pool_pre_ping: 호출 사이에 몇 초 쉬는 배치에서 Neon이 연결을 끊은 적이 있어, 쓰기 전에 연결이 살았는지 확인하고 아니면 다시 연다.
+    return create_engine(to_sqlalchemy_url(require_env("DATABASE_URL")), pool_pre_ping=True)
 
 
 def create_tables(engine: Engine) -> list[str]:

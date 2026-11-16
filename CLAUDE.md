@@ -19,7 +19,7 @@ Claude Code가 지켜야 할 것:
 
 프리미어리그 20개 구단 팬을 위한 **AI 기반** 축구 앱. 경기 결과·순위를 FotMob 스타일 UI로 보여주고, 경기별 라인업·이벤트·스탯 데이터 위에서 **통계 모델과 LLM이 경기를 분석·예측**하며, 그 예측의 적중률을 앱이 스스로 측정한다 (2026-11-16 방향 전환: 뉴스 요약 → 데이터 분석. 뉴스 탭은 가디언 원문 피드로 유지, ADR 0006).
 
-- 레포: `jjoonii34/nexpitch` (배포: https://nexpitch.vercel.app)
+- 레포: `jjoonii34/nexpitch` (배포: https://nexpitch-pi.vercel.app — `nexpitch.vercel.app`은 다른 Vercel 팀의 옛 프로젝트가 쥐고 있어 포기, 2026-11-16)
 - 소유자: 융합소프트웨어학부 휴학생, 학부연구생(LLM 추천 연구). 개발 경험 적음 → 설명은 처음 보는 사람 기준으로.
 - 목적: 포트폴리오 (대학원 + AI 엔지니어 취업). 비상업, 비용 0원 목표.
 - 1차 사용자: 소유자 본인 (리버풀 팬).
@@ -149,7 +149,7 @@ nexpitch/
 
 ## 지금 있는 것
 
-nexpitch는 프리미어리그 경기 결과·순위·경기 상세를 모바일 화면으로 보여주는 앱이다. 이후 20개 구단 이적·부상 뉴스의 한국어 요약과 기자 티어로 확장한다. 배포 주소: https://nexpitch.vercel.app
+nexpitch는 프리미어리그 경기 결과·순위·경기 상세를 모바일 화면으로 보여주는 앱이다. 이후 20개 구단 이적·부상 뉴스의 한국어 요약과 기자 티어로 확장한다. 배포 주소: https://nexpitch-pi.vercel.app
 
 레포는 서로 독립된 두 부분으로 나뉜다. 공통 도구나 루트 `package.json`은 없다.
 
@@ -220,6 +220,7 @@ lib/football.ts  →  lib/mappers.ts  →  lib/types.ts  →  app/ + components/
 - 저장(ADR 0003): `app/models/news.py`에 테이블 3개(`clubs`, `articles`, `article_clubs`), `app/db.py`가 `DATABASE_URL`로 접속, `app/storage.py`의 `save_articles`가 `url` 기준으로 중복 없이 저장하고 구단과 연결한다. `python -m app.db`는 없는 테이블을 만든다.
 - 구단 목록은 `<레포 루트>/data/clubs.csv`(이름, 가디언 태그)가 원본이다. `python -m app.clubs`가 `clubs` 테이블을 csv에 맞춘다(빠진 구단은 지우지 않고 `in_premier_league=False`). 가디언 태그는 이름에서 추측할 수 없으니 새 구단은 API로 확인한다.
 - 번역(ADR 0005 → **폐기**, ADR 0006): `app/llm/translate.py`는 남아 있지만 배치·화면에서 쓰지 않는다. 가디언 기사는 LLM에 넣으면 안 된다. 원래 설명: `python -m app.llm.translate [최대 호출 수]`가 번역 없는 기사를 최신순으로 10건씩 묶어 Gemini(`gemini-3.5-flash-lite`, Interactions API + pydantic 스키마)에 보내고 `article_translations`에 프롬프트 버전과 함께 저장한다. 네트워크는 `translate_batch`에만 있고 나머지는 순수 함수라 가짜 번역 함수로 테스트한다. `PROMPT_VERSION`을 올리면 `frontend/lib/news.ts`의 같은 상수도 올린다. 무료 한도(분당 15·하루 500, 2026-11-14 확인)는 바뀔 수 있다.
+- 분석 데이터(ADR 0007): `app/models/analysis.py` 테이블 8개(id는 API-Football id), `app/collectors/api_football.py`(네트워크는 `ApiFootballClient.get` 하나, 나머지 순수 변환), `app/analysis_store.py`(저장·덮어쓰기, 팀·선수 미리 읽기), `app/analysis_collect.py`(하루 예산 안에서 '아직 없는 것'부터, `python -m app.analysis_collect [호출 수]`). 무료 한도 하루 100·분당 10회, 호출 사이 7초. 원본은 `raw_responses`에.
 - 저장 테스트는 메모리 안의 SQLite로 돈다. 그래서 저장 코드에 PostgreSQL 전용 문법을 쓰지 않는다. `DATABASE_URL`에는 비밀번호가 있으니 출력하지 않는다.
 
 ## 작업 규칙 보충

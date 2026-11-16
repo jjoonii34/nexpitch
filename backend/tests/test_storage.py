@@ -15,7 +15,9 @@ def count(session: Session, table) -> int:
 
 
 def test_create_tables_makes_all_tables():
-    assert create_tables(create_engine("sqlite://")) == ["article_clubs", "article_translations", "articles", "clubs"]
+    tables = create_tables(create_engine("sqlite://"))
+    assert {"article_clubs", "article_translations", "articles", "clubs"} <= set(tables)  # 뉴스 테이블
+    assert {"fixtures", "lineups", "lineup_players", "players", "teams", "team_match_stats", "player_match_stats", "raw_responses"} <= set(tables)  # 분석 테이블 (ADR 0007)
 
 
 def test_save_stores_articles_and_links_club(session):
