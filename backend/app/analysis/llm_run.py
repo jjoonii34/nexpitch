@@ -94,17 +94,14 @@ def score_table(session: Session, train: pd.DataFrame, test: pd.DataFrame, train
 
 
 if __name__ == "__main__":
-    from google import genai
-
     from app.db import get_engine
-    from app.settings import load_env
+    from app.llm.client import gemini_client
 
     season = int(sys.argv[1]) if len(sys.argv) > 1 else 2024
     max_calls = int(sys.argv[2]) if len(sys.argv) > 2 else 400
     masked_n = int(sys.argv[3]) if len(sys.argv) > 3 else 100
     version = sys.argv[4] if len(sys.argv) > 4 else PROMPT_VERSION
-    load_env()
-    client = genai.Client(http_options={"timeout": 60_000})
+    client = gemini_client(60)
 
     with Session(get_engine()) as session:
         matches = load_matches(session)

@@ -157,9 +157,6 @@ if __name__ == "__main__":
         stamp()
         print("README.ja.md 지문을 현재 README.md에 맞췄습니다 (번역 내용은 그대로).")
     else:
-        from google import genai
+        from app.llm.client import gemini_client
 
-        from app.settings import load_env
-
-        load_env()
-        print("README.ja.md:", update(genai.Client(http_options={"timeout": 120_000})))
+        print("README.ja.md:", update(gemini_client(120)))
