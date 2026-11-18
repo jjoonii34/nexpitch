@@ -5,7 +5,7 @@ id는 API-Football의 id를 그대로 쓴다 (다시 받을 때 같은 행을 �
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -149,3 +149,24 @@ class PlayerMatchStats(Base):
     yellow_cards: Mapped[int | None] = mapped_column(Integer)
     red_cards: Mapped[int | None] = mapped_column(Integer)
     stats_json: Mapped[dict] = mapped_column(JsonColumn)
+
+
+class Prediction(Base):
+    """모델 하나가 경기 하나에 대해 낸 승·무·패 확률 (ADR 0009). 통계 모델·LLM·결합이 같은 표에 쌓여 같은 지표로 비교된다.
+
+    LLM 행에는 한국어 근거와 선발 가설도 함께 둔다 (4단계 역검증 재료, 5단계 화면 표시).
+    """
+
+    __tablename__ = "predictions"
+    __table_args__ = (UniqueConstraint("fixture_id", "model", "version"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    fixture_id: Mapped[int] = mapped_column(ForeignKey("fixtures.id"))
+    model: Mapped[str] = mapped_column(String(30))  # constant / elo / features / llm / llm_masked / combined
+    version: Mapped[str] = mapped_column(String(20))  # 통계 모델은 학습 시즌 표시(예: train2022-2023), LLM은 프롬프트 버전
+    p_home: Mapped[float] = mapped_column(Float)
+    p_draw: Mapped[float] = mapped_column(Float)
+    p_away: Mapped[float] = mapped_column(Float)
+    rationale: Mapped[str | None] = mapped_column(Text)  # LLM의 근거 (한국어)
+    hypothesis: Mapped[str | None] = mapped_column(Text)  # LLM의 선발·전술 가설 (한국어, 검증 가능한 형태)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
