@@ -7,7 +7,7 @@ import pytest
 
 from app.analysis.dataset import OUTCOMES, MatchRecord, build_features, outcome
 from app.analysis.elo import EloTable, expected_score
-from app.analysis.evaluate import accuracy, brier, log_loss, time_split
+from app.analysis.evaluate import accuracy, brier, brier_each, log_loss, paired_brier_diff, time_split
 from app.analysis.models import fit
 from app.analysis.run import run
 
@@ -90,3 +90,13 @@ def test_time_split_and_constant_model_probs():
     probs = fit("constant", train).predict_proba(test)
     assert probs.shape == (6, 3) and probs.sum(axis=1).round(6).eq(1).all()
     assert outcome(2, 1) == "H" and outcome(0, 0) == "D"
+
+
+def test_paired_brier_diff_prefers_better_model():
+    outcomes = pd.Series(["H", "A", "D", "H"] * 10, index=range(40))
+    perfect = pd.DataFrame([{c: 1.0 if c == o else 0.0 for c in OUTCOMES} for o in outcomes], index=outcomes.index)
+    flat = pd.DataFrame([{c: 1 / 3 for c in OUTCOMES}] * 40, index=outcomes.index)
+    assert brier_each(perfect, outcomes).sum() == 0
+    diff, low, high = paired_brier_diff(perfect, flat, outcomes)
+    assert diff < 0 and high < 0  # 완벽한 모델이 확실히 낫다
+    assert paired_brier_diff(flat, flat, outcomes) == (0.0, 0.0, 0.0)

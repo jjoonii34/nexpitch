@@ -1,6 +1,7 @@
 """3단계 실행: 평가 시즌 경기마다 LLM 분석가에게 묻고 저장한 뒤, 통계 모델과 같은 표로 채점한다.
 
-python -m app.analysis.llm_run [평가 시즌=2024] [최대 호출 수=400] [가린 변형 경기 수=100]
+python -m app.analysis.llm_run [평가 시즌=2024] [최대 호출 수=400] [가린 변형 경기 수=100] [프롬프트 버전=v1]
+python -m app.analysis.llm_run 2024 100 100 v2   # 4단계: 고르게 뽑은 100경기에서 틀+숫자 가설만 모은다
 
 - 이미 예측이 있는 경기는 건너뛴다 → 중간에 멈춰도 다시 실행하면 이어서 한다.
 - 가린 변형(llm_masked)은 비용을 아끼려 일부 경기(시즌을 고르게 나눠 뽑음)에만 묻고, 그 경기들에 대해서만 가림/안 가림을 비교한다.
@@ -101,6 +102,7 @@ if __name__ == "__main__":
     season = int(sys.argv[1]) if len(sys.argv) > 1 else 2024
     max_calls = int(sys.argv[2]) if len(sys.argv) > 2 else 400
     masked_n = int(sys.argv[3]) if len(sys.argv) > 3 else 100
+    version = sys.argv[4] if len(sys.argv) > 4 else PROMPT_VERSION
     load_env()
     client = genai.Client(http_options={"timeout": 60_000})
 
@@ -111,6 +113,13 @@ if __name__ == "__main__":
         names = team_names(session)
         home_ids = {m.id: m.home_id for m in matches}
         away_ids = {m.id: m.away_id for m in matches}
+
+        if version == PROMPT_VERSION_V2:  # 4단계용: 시즌에서 고르게 masked_n경기만 가설을 모은다 (채점은 v1 표 그대로)
+            calls, errors = run_llm(session, client, masked_subset(test, masked_n), names, home_ids, away_ids, "llm", False, max_calls, version=version)
+            print(f"llm v2: 호출 {calls} · 오류 {len(errors)}")
+            for e in errors[:5]:
+                print("  -", e)
+            sys.exit(0)
 
         calls, errors = run_llm(session, client, test, names, home_ids, away_ids, "llm", False, max_calls)
         print(f"llm: 호출 {calls} · 오류 {len(errors)}")

@@ -30,5 +30,22 @@ def time_split(table: pd.DataFrame, test_seasons: list[int]) -> tuple[pd.DataFra
     return table[~is_test], table[is_test]
 
 
+def brier_each(probs: pd.DataFrame, outcomes: pd.Series) -> np.ndarray:
+    """경기별 Brier (평균 내기 전). 두 모델을 같은 경기끼리 짝지어 비교할 때 쓴다."""
+    actual = np.array([[1.0 if o == c else 0.0 for c in OUTCOMES] for o in outcomes])
+    return ((probs[OUTCOMES].to_numpy() - actual) ** 2).sum(axis=1)
+
+
+def paired_brier_diff(a: pd.DataFrame, b: pd.DataFrame, outcomes: pd.Series, samples: int = 1000, seed: int = 0) -> tuple[float, float, float]:
+    """같은 경기에서 Brier(a) − Brier(b)의 평균과 95% 부트스트랩 구간. 음수면 a가 낫고, 구간이 0을 포함하면 차이가 우연일 수 있다.
+
+    경기를 통째로 다시 뽑는다(짝 유지) → 경기 난이도 차이가 상쇄돼 독립 비교보다 구간이 좁다.
+    """
+    d = brier_each(a.loc[outcomes.index], outcomes) - brier_each(b.loc[outcomes.index], outcomes)
+    rng = np.random.default_rng(seed)
+    means = rng.choice(d, (samples, len(d))).mean(axis=1)
+    return float(d.mean()), float(np.percentile(means, 2.5)), float(np.percentile(means, 97.5))
+
+
 def summarize(name: str, probs: pd.DataFrame, outcomes: pd.Series) -> dict:
     return {"model": name, "n": int(len(outcomes)), "brier": round(brier(probs, outcomes), 4), "log_loss": round(log_loss(probs, outcomes), 4), "accuracy": round(accuracy(probs, outcomes), 3)}
