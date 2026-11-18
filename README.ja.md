@@ -145,6 +145,7 @@ python -m app.analysis.llm_run 2024 400 90   # LLM アナリストの実行 → 
 | [0008](docs/adr/0008-결과-예측-통계-기준선.md) | ベースライン = 定数・Elo・特徴量ロジスティック回帰、シーズン単位の時系列評価 | ポアソン（バックログ）、ブースティング、ランダム分割 |
 | [0009](docs/adr/0009-LLM-분석가-같은-숫자-같은-지표.md) | LLM アナリストは統計モデルと同じ数値だけを受け取り、同じ指標で採点。チーム名を伏せた版で記憶を統制 | 記事の入力（規約）、上位モデル（上限）、組み合わせ重みの学習（リーク） |
 | [0011](docs/adr/0011-DB-구조-변경은-Alembic-마이그레이션.md) | DB スキーマの変更は Alembic マイグレーションで行い、バッチ開始時に適用 | 手書き SQL ファイル、create_all + 手動 ALTER |
+| [0012](docs/adr/0012-README-일본어판-자동-번역.md) | README の日本語版は Actions + Gemini で自動更新し、数値・リンクの検査に通った場合のみ保存 | 手動翻訳のみ、ブラウザ翻訳 |
 
 ## 学んだこと（要約 — 全文は [docs/notes.md](docs/notes.md)、韓国語）
 
@@ -158,3 +159,5 @@ python -m app.analysis.llm_run 2024 400 90   # LLM アナリストの実行 → 
 ---
 
 試合データ提供：football-data.org · API-Football &nbsp;|&nbsp; ニュース：Powered by The Guardian（Open Platform、原文のまま表示）
+
+<!-- readme-ja source-sha256: 0872f54bee91fa463044a771c4870e7db6ca69d77c67c015c7726994ee468737 -->
