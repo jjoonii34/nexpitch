@@ -1,0 +1,53 @@
+# README.md(한국어)가 바뀌어 main에 push되면 Gemini로 일본어판 README.ja.md를 갱신한다 (ADR 0012).
+# 원본 지문이 같으면(사람이 직접 번역하고 --stamp 한 경우 포함) 아무것도 안 한다. 숫자·링크가 바뀐 번역은 저장하지 않고 실패한다.
+name: readme-translate
+
+on:
+  push:
+    branches: [main]
+    paths: [README.md]
+  workflow_dispatch: # Actions 탭에서 손으로도 돌릴 수 있다
+
+permissions:
+  contents: write # 번역 결과를 커밋하기 위해
+
+concurrency:
+  group: readme-translate # 연달아 push해도 한 번에 하나씩
+  cancel-in-progress: false
+
+jobs:
+  translate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # 번역에 필요한 것만 설치한다 (pandas·scikit-learn 등은 필요 없음)
+      - run: pip install google-genai pydantic python-dotenv
+
+      - name: README 일본어판 갱신 (필요할 때만 Gemini 호출)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python -m app.llm.readme_ja
+
+      # GITHUB_TOKEN으로 한 push는 워크플로를 다시 깨우지 않는다 → 번역 커밋이 무한 반복되지 않는다
+      - name: 바뀌었으면 커밋
+        working-directory: .
+        run: |
+          if git diff --quiet README.ja.md; then
+            echo "README.ja.md 변경 없음"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.ja.md
+          git commit -m "docs: README 일본어판 자동 갱신 — README.md 변경을 반영하기 위해 (Gemini, 숫자·링크 검사 통과)"
+          git pull --rebase
+          git push
