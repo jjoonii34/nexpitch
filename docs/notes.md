@@ -379,3 +379,21 @@
 
 **다음 할 일**: 내일 v2 가설 100경기 수집 → `python -m app.analysis.backtest_run 2024` → ADR 0010 결과 작성. 그 사이 Alembic 선택지 정리.
 
+## 2026-11-18 — Alembic 도입 (ADR 0011)
+
+**무엇을 왜**
+- `create_all`은 없는 테이블만 만들고 기존 테이블에 열을 못 더한다. 4단계의 `hypothesis_json`을 Neon에 손 ALTER로 넣었더니 기록이 안 남았다 → 구조 변경을 파일로 남기는 Alembic 도입.
+- 기준선 마이그레이션 `0001`: 빈 SQLite와 모델을 비교하는 autogenerate로 테이블 14개 전체를 만드는 파일을 생성. 생성된 코드에 `Text()` import 누락(알려진 문제)이 있어 `sa.Text()`로 고쳤다.
+- Neon에는 테이블이 이미 있으므로 다시 만들지 않고 `alembic stamp 0001`("여기까지 적용됨" 도장)만 찍은 뒤, `alembic check`로 모델과 Neon이 완전히 같음을 확인("No new upgrade operations detected").
+- 테스트 1개: 빈 SQLite에 upgrade → 모델과 같은 테이블 / `check`가 마이그레이션 없는 모델 변경을 잡는지(일부러 열을 더해 잡히는 것 확인) / downgrade로 전부 지워짐. 전체 57개 통과.
+- Actions 배치 두 개에 `python -m alembic upgrade head` 단계 추가. `python -m app.db`는 이제 Alembic을 쓰라고 안내만 한다.
+
+**틀릴 수 있는 것**
+- 윈도우에서 alembic이 `alembic.ini`를 시스템 인코딩(cp949)으로 읽어 한글 주석에서 깨졌다 → 이 파일만 ASCII로 쓴다.
+- autogenerate는 열 이름 변경을 "삭제 + 추가"로 읽는 등 틀릴 수 있다. 생성 파일을 반드시 읽는다.
+- 테스트는 SQLite라 PostgreSQL 전용 타입 차이는 Neon에서 `alembic check`로만 확인된다.
+- Actions에서의 첫 `upgrade head`는 아직 안 돌려 봤다(다음 배치에서 확인).
+
+**비용**: 0원.
+
+**다음 할 일**: Gemini 한도가 풀리면 v2 가설 100경기 → 역검증 → ADR 0010 결과. 그다음 5단계 화면.

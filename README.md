@@ -135,6 +135,7 @@ python -m app.analysis.run 2024    # 통계 기준선 평가 표 출력
 | [0007](docs/adr/0007-경기-분석-데이터는-API-Football-무료-플랜.md) | 분석 데이터는 API-Football, 원본은 DB JSONB, 정규화 8테이블 | 유료 데이터, JSON만 저장 |
 | [0008](docs/adr/0008-결과-예측-통계-기준선.md) | 기준선 = 상수·Elo·특성 로지스틱, 시즌 시간순 평가 | 포아송(백로그), 부스팅, 무작위 분리 |
 | [0009](docs/adr/0009-LLM-분석가-같은-숫자-같은-지표.md) | LLM 분석가는 통계 모델과 같은 숫자만 받고 같은 지표로 채점, 팀 이름 가린 변형으로 기억 통제 | 기사 입력(약관), 상위 모델(한도), 결합 가중치 학습(누출) |
+| [0011](docs/adr/0011-DB-구조-변경은-Alembic-마이그레이션.md) | DB 구조 변경은 Alembic 마이그레이션으로, 배치가 시작할 때 적용 | 손 SQL 파일, create_all + 손 ALTER |
 
 ## 배운 것 (요약 — 전체는 [docs/notes.md](docs/notes.md))
 
