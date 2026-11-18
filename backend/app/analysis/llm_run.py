@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.analysis.dataset import OUTCOMES, build_features, load_matches
 from app.analysis.evaluate import summarize, time_split
-from app.analysis.llm_analyst import PROMPT_VERSION, SECONDS_BETWEEN_CALLS, ask
+from app.analysis.llm_analyst import PROMPT_VERSION, PROMPT_VERSION_V2, SECONDS_BETWEEN_CALLS, ask, ask_v2
 from app.analysis.models import MODEL_FEATURES, fit
 from app.analysis.predictions import done_fixture_ids, load_probs, save_llm, save_probs
 from app.models.analysis import Team
@@ -35,9 +35,10 @@ def masked_subset(test: pd.DataFrame, n: int) -> pd.DataFrame:
     return test.iloc[[int(i * step) for i in range(n)]]
 
 
-def run_llm(session: Session, client, test: pd.DataFrame, names: dict[int, str], home_ids: dict[int, int], away_ids: dict[int, int], model: str, masked: bool, max_calls: int, pause: float = SECONDS_BETWEEN_CALLS) -> tuple[int, list[str]]:
-    """아직 예측이 없는 경기에 대해 LLM을 부른다. (호출 수, 오류 목록)."""
-    done = done_fixture_ids(session, model, PROMPT_VERSION)
+def run_llm(session: Session, client, test: pd.DataFrame, names: dict[int, str], home_ids: dict[int, int], away_ids: dict[int, int], model: str, masked: bool, max_calls: int, pause: float = SECONDS_BETWEEN_CALLS, version: str = PROMPT_VERSION) -> tuple[int, list[str]]:
+    """아직 예측이 없는 경기에 대해 LLM을 부른다. (호출 수, 오류 목록). version이 v2면 틀+숫자 가설을 받는다."""
+    asker = ask_v2 if version == PROMPT_VERSION_V2 else ask
+    done = done_fixture_ids(session, model, version)
     calls, errors = 0, []
     for _, row in test.iterrows():
         fixture_id = int(row["fixture_id"])
@@ -47,13 +48,13 @@ def run_llm(session: Session, client, test: pd.DataFrame, names: dict[int, str],
             time.sleep(pause)
         calls += 1
         try:
-            result = ask(client, row, names.get(home_ids[fixture_id], "?"), names.get(away_ids[fixture_id], "?"), masked=masked)
+            result = asker(client, row, names.get(home_ids[fixture_id], "?"), names.get(away_ids[fixture_id], "?"), masked=masked)
         except Exception as error:  # 한 경기 실패는 기록만 하고 계속; 한도(429)면 멈춘다
             errors.append(f"{fixture_id}: {str(error)[:100]}")
             if "429" in str(error):
                 break
             continue
-        save_llm(session, model, PROMPT_VERSION, fixture_id, result)
+        save_llm(session, model, version, fixture_id, result)
     return calls, errors
 
 

@@ -169,4 +169,27 @@ class Prediction(Base):
     p_away: Mapped[float] = mapped_column(Float)
     rationale: Mapped[str | None] = mapped_column(Text)  # LLM의 근거 (한국어)
     hypothesis: Mapped[str | None] = mapped_column(Text)  # LLM의 선발·전술 가설 (한국어, 검증 가능한 형태)
+    hypothesis_json: Mapped[dict | None] = mapped_column(JsonColumn, nullable=True)  # v2: 틀+숫자 가설 {feature, op, value, claim} (ADR 0010)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class HypothesisCheck(Base):
+    """LLM 가설 하나를 과거 데이터로 역검증한 결과 (ADR 0010). 조건 성립 경기와 아닌 경기의 홈 승률 차이 + 부트스트랩 95% 구간."""
+
+    __tablename__ = "hypothesis_checks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    prediction_id: Mapped[int] = mapped_column(ForeignKey("predictions.id"))
+    feature: Mapped[str] = mapped_column(String(30))
+    op: Mapped[str] = mapped_column(String(2))
+    value: Mapped[float] = mapped_column(Float)
+    claim: Mapped[str] = mapped_column(String(30))
+    n_condition: Mapped[int] = mapped_column(Integer)  # 조건이 성립한 과거 경기 수
+    n_other: Mapped[int] = mapped_column(Integer)
+    rate_condition: Mapped[float | None] = mapped_column(Float)  # 조건 성립 경기의 홈 승률
+    rate_other: Mapped[float | None] = mapped_column(Float)
+    diff: Mapped[float | None] = mapped_column(Float)  # rate_condition − rate_other
+    ci_low: Mapped[float | None] = mapped_column(Float)
+    ci_high: Mapped[float | None] = mapped_column(Float)
+    verdict: Mapped[str] = mapped_column(String(20))  # supported / not_supported / insufficient
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

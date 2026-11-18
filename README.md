@@ -1,6 +1,6 @@
 # ⚽ nexpitch
 
-> **"LLM은 스포츠 데이터 분석가 역할을 할 수 있는가?"** — 프리미어리그 20개 구단의 경기 데이터 위에서 통계 모델과 LLM이 같은 문제(경기 결과 예측)를 풀게 하고, 누가 얼마나 맞히는지 앱이 스스로 측정하는 AI 기반 축구 앱
+> **"스포츠 데이터 분석가에게 맡겨야 할 분석을 AI가 대신할 수 있는가?"** — 프리미어리그 20개 구단의 경기 데이터 위에서 통계 모델과 LLM이 분석가의 일(경기 전 승·무·패 확률, 근거, 검증 가능한 전술·선발 가설)을 하게 하고, 그 분석이 실제로 유의미한지 — 얼마나 맞히는지, 가설에 데이터 근거가 있는지 — 앱이 스스로 측정해 보여주는 AI 기반 축구 앱
 
 [![Next.js](https://img.shields.io/badge/Next.js_16-000?logo=nextdotjs&logoColor=fff)](frontend)
 [![Python](https://img.shields.io/badge/Python_3.13-3776AB?logo=python&logoColor=fff)](backend)

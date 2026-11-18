@@ -7,12 +7,14 @@
 
 import math
 from dataclasses import dataclass
+from typing import Literal
 
 import pandas as pd
 from pydantic import BaseModel, Field
 
 MODEL = "gemini-3.5-flash-lite"
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v1"  # 자유 문장 가설 (3단계 채점에 쓴 버전)
+PROMPT_VERSION_V2 = "v2"  # 가설을 틀+숫자로 제한 (4단계 역검증용, ADR 0010)
 SECONDS_BETWEEN_CALLS = 4.5  # 분당 15회 한도
 
 SYSTEM_INSTRUCTION = (
@@ -85,3 +87,67 @@ def ask(client, row: pd.Series, home_name: str, away_name: str, masked: bool = F
     out = AnalystOutput.model_validate_json(interaction.output_text)
     p_home, p_draw, p_away = normalize(out.p_home, out.p_draw, out.p_away)
     return AnalystResult(p_home, p_draw, p_away, out.rationale.strip(), out.hypothesis.strip())
+
+
+# ── v2: 검증 가능한 가설 (ADR 0010) ──
+
+HYPOTHESIS_FEATURES = {
+    # 가설에 쓸 수 있는 특성 — 전부 '홈 − 원정' 차이 열이라 과거 경기에서 바로 셀 수 있다
+    "lineup_changes_diff": "starting-XI changes difference (home - away)",
+    "rest_diff": "rest days difference (home - away)",
+    "elo_diff": "Elo difference (home + home advantage - away)",
+    "form_diff": "last-5 points difference (home - away)",
+    "xg_diff_form": "last-5 xG difference gap (home - away)",
+}
+FeatureName = Literal["lineup_changes_diff", "rest_diff", "elo_diff", "form_diff", "xg_diff_form"]
+
+
+class Hypothesis(BaseModel):
+    """검증 가능한 가설 한 개: '<특성>이 <op> <value>이면 홈 승률이 <claim>'."""
+
+    feature: FeatureName
+    op: Literal[">=", "<="]
+    value: float
+    claim: Literal["home_win_rate_higher", "home_win_rate_lower"]
+    reason: str  # 한국어 한 문장
+
+
+class AnalystOutputV2(BaseModel):
+    p_home: float = Field(ge=0, le=1)
+    p_draw: float = Field(ge=0, le=1)
+    p_away: float = Field(ge=0, le=1)
+    rationale: str
+    hypothesis: Hypothesis
+
+
+SYSTEM_INSTRUCTION_V2 = (
+    SYSTEM_INSTRUCTION.split("(4) hypothesis:")[0]
+    + "(4) hypothesis: ONE testable rule built only from these features: "
+    + ", ".join(f"{k} = {v}" for k, v in HYPOTHESIS_FEATURES.items())
+    + ". Choose a feature, an operator (>= or <=), a numeric threshold, and whether the home win rate should be higher or lower when the condition holds. "
+    + "Add a one-sentence Korean reason. Output JSON only."
+)
+
+
+@dataclass
+class AnalystResultV2(AnalystResult):
+    structured: Hypothesis | None = None
+
+
+def hypothesis_text(h: Hypothesis) -> str:
+    """구조화 가설을 사람이 읽는 한 줄로 (DB의 hypothesis 열과 화면용)."""
+    direction = "높다" if h.claim == "home_win_rate_higher" else "낮다"
+    return f"{h.feature} {h.op} {h.value:g} 이면 홈 승률이 {direction} — {h.reason}"
+
+
+def ask_v2(client, row: pd.Series, home_name: str, away_name: str, masked: bool = False) -> AnalystResultV2:
+    """v2: 같은 입력, 가설만 틀+숫자로 받는다."""
+    interaction = client.interactions.create(
+        model=MODEL,
+        system_instruction=SYSTEM_INSTRUCTION_V2,
+        input=build_input(row, home_name, away_name, masked),
+        response_format={"type": "text", "mime_type": "application/json", "schema": AnalystOutputV2.model_json_schema()},
+    )
+    out = AnalystOutputV2.model_validate_json(interaction.output_text)
+    p_home, p_draw, p_away = normalize(out.p_home, out.p_draw, out.p_away)
+    return AnalystResultV2(p_home, p_draw, p_away, out.rationale.strip(), hypothesis_text(out.hypothesis), structured=out.hypothesis)

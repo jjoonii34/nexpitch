@@ -22,7 +22,11 @@ def save_llm(session: Session, model: str, version: str, fixture_id: int, result
     """LLM 예측 한 건 (확률 + 근거 + 가설)."""
     session.execute(delete(Prediction).where(Prediction.model == model, Prediction.version == version, Prediction.fixture_id == fixture_id))
     session.add(
-        Prediction(fixture_id=fixture_id, model=model, version=version, p_home=result.p_home, p_draw=result.p_draw, p_away=result.p_away, rationale=result.rationale, hypothesis=result.hypothesis)
+        Prediction(
+            fixture_id=fixture_id, model=model, version=version, p_home=result.p_home, p_draw=result.p_draw, p_away=result.p_away,
+            rationale=result.rationale, hypothesis=result.hypothesis,
+            hypothesis_json=getattr(result, "structured", None).model_dump() if getattr(result, "structured", None) else None,
+        )
     )
     session.commit()
 
