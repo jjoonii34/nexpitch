@@ -26,6 +26,12 @@ jobs:
 
       - run: pip install -r requirements.txt
 
+      # 테이블 구조를 최신 마이그레이션에 맞춘다 (ADR 0011). 이미 최신이면 아무것도 안 한다.
+      - name: DB 마이그레이션 적용
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m alembic upgrade head
+
       # 하루 100회 중 90회만 쓴다 — 손으로 확인할 여유 10회를 남기기 위해.
       - name: 라인업·스탯 수집 (최대 90회 호출)
         env:

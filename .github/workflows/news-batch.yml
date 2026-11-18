@@ -27,6 +27,12 @@ jobs:
 
       - run: pip install -r requirements.txt
 
+      # 테이블 구조를 최신 마이그레이션에 맞춘다 (ADR 0011). 이미 최신이면 아무것도 안 한다.
+      - name: DB 마이그레이션 적용
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m alembic upgrade head
+
       # 키는 레포 Settings → Secrets에 있다. 로그에는 ***로 가려진다.
       - name: 기사 수집 → DB 저장
         env:

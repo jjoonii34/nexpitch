@@ -24,11 +24,14 @@ def get_engine() -> Engine:
 
 
 def create_tables(engine: Engine) -> list[str]:
-    """아직 없는 테이블을 만든다(있는 테이블은 건드리지 않는다). DB에 있는 테이블 이름을 돌려준다."""
+    """아직 없는 테이블을 만든다(있는 테이블은 건드리지 않는다). DB에 있는 테이블 이름을 돌려준다.
+
+    테스트의 빈 SQLite용. 실제 DB(Neon)의 구조는 Alembic 마이그레이션으로만 바꾼다 (ADR 0011).
+    """
     Base.metadata.create_all(engine)
     return sorted(inspect(engine).get_table_names())
 
 
 if __name__ == "__main__":
-    # 직접 실행하면 테이블을 만들고 이름을 보여준다: python -m app.db
-    print("테이블:", ", ".join(create_tables(get_engine())))
+    # 예전에는 여기서 create_all로 테이블을 만들었다. 이제는 Alembic이 맡는다 (ADR 0011).
+    print("테이블 만들기·바꾸기는 Alembic으로 합니다: python -m alembic upgrade head")

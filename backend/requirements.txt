@@ -7,3 +7,4 @@ psycopg[binary]  # PostgreSQL(Neon)에 접속하는 드라이버
 google-genai    # Gemini 호출 (기사 한국어 번역, ADR 0005)
 pandas         # 경기 데이터를 표로 다루고 시즌별·팀별 특성을 만들기 위해 (ADR 0008)
 scikit-learn   # 로지스틱 회귀·Brier score 등 표준 구현 (직접 짜지 않기 위해, ADR 0008)
+alembic        # 테이블 구조 변경을 마이그레이션 파일로 기록·적용하기 위해 (create_all은 기존 테이블에 열을 못 더함, ADR 0011)
