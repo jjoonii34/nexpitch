@@ -1,5 +1,7 @@
 # ⚽ nexpitch
 
+**한국어** · [日本語](README.ja.md)
+
 > **"스포츠 데이터 분석가에게 맡겨야 할 분석을 AI가 대신할 수 있는가?"** — 프리미어리그 20개 구단의 경기 데이터 위에서 통계 모델과 LLM이 분석가의 일(경기 전 승·무·패 확률, 근거, 검증 가능한 전술·선발 가설)을 하게 하고, 그 분석이 실제로 유의미한지 — 얼마나 맞히는지, 가설에 데이터 근거가 있는지 — 앱이 스스로 측정해 보여주는 AI 기반 축구 앱
 
 [![Next.js](https://img.shields.io/badge/Next.js_16-000?logo=nextdotjs&logoColor=fff)](frontend)
@@ -11,7 +13,7 @@
 [![news-batch](https://github.com/jjoonii34/nexpitch/actions/workflows/news-batch.yml/badge.svg)](https://github.com/jjoonii34/nexpitch/actions/workflows/news-batch.yml)
 [![analysis-batch](https://github.com/jjoonii34/nexpitch/actions/workflows/analysis-batch.yml/badge.svg)](https://github.com/jjoonii34/nexpitch/actions/workflows/analysis-batch.yml)
 
-**데모** → https://nexpitch-pi.vercel.app · 
+**데모** → https://nexpitch-pi.vercel.app
 
 ---
 
@@ -31,6 +33,7 @@
 | 뉴스 | 20개 구단 기사 최신순, 구단 선택, 단어 검색 — 약관에 따라 **원문 그대로, 최근 24시간** | The Guardian Open Platform |
 | (백엔드) | 경기별 라인업·포메이션·팀 스탯(xG)·선수 스탯 수집 — 2022~현재 시즌, 매일 자동 | API-Football |
 | (백엔드) | 결과 예측 통계 기준선 3종 + 시즌 단위 시간순 평가 | 위 데이터 |
+| (백엔드) | LLM 분석가(Gemini): 같은 숫자로 확률·한국어 근거·가설 → 통계 모델과 같은 지표로 채점, 우연 여부는 짝지은 부트스트랩 | 위 데이터 + Gemini 무료 티어 |
 
 ## 측정 결과
 
@@ -66,12 +69,13 @@
                                         │
  football-data.org ──(요청 시 직접)──► Next.js 16 (Vercel) ◄── 사용자 (모바일)
                                         ▲
-                     app/analysis/ ─────┘  Elo · 로지스틱 · (3단계) Gemini 분석가 → predictions
+                     app/analysis/ ─────┘  Elo · 로지스틱 · Gemini 분석가 → predictions
 ```
 
 - **frontend/** Next.js 16 (Cache Components). 화면은 외부 API의 모양을 모른다: `football.ts`(호출·캐시) → `mappers.ts`(순수 변환) → `types.ts` → 화면. 키가 없거나 실패하면 샘플 데이터를 보여주되 **"샘플 데이터입니다" 띠를 반드시** 띄운다.
 - **backend/** Python. 수집기는 "소스 하나 = 클래스 하나" 규약, 네트워크 함수와 순수 변환 함수를 나눠 변환만 테스트한다. 분석 모듈은 **경기 전까지의 기록만**으로 특성을 만든다(정보 누출 금지).
-- **테스트**: 프론트 16 (Node 내장 러너), 백엔드 44 (pytest, 메모리 SQLite·가짜 클라이언트). 전부 네트워크 없이 돈다.
+- **DB 구조**는 Alembic 마이그레이션으로 관리하고, 배치가 시작할 때 적용한다.
+- **테스트**: 프론트 16 (Node 내장 러너), 백엔드 57 (pytest, 메모리 SQLite·가짜 클라이언트). 전부 네트워크 없이 돈다.
 
 ## 데이터 소스와 약관 
 
@@ -111,11 +115,12 @@ cd backend
 python -m venv .venv && .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env               # GUARDIAN_API_KEY, DATABASE_URL, API_FOOTBALL_KEY, GEMINI_API_KEY
-python -m pytest                   # 44개, 네트워크 없음
-python -m app.db                   # 없는 테이블 만들기
+python -m pytest                   # 57개, 네트워크 없음
+python -m alembic upgrade head     # 테이블 만들기·최신 구조로 (ADR 0011)
 python -m app.collect              # 뉴스 수집 → DB,  python -m app.cleanup  # 24시간 정리
 python -m app.analysis_collect 90  # 분석 데이터 수집 (하루 예산 안에서)
 python -m app.analysis.run 2024    # 통계 기준선 평가 표 출력
+python -m app.analysis.llm_run 2024 400 90   # LLM 분석가 실행 → 채점 표 (Gemini 무료 한도 주의)
 ```
 
 ## 설계 결정 (ADR)
@@ -137,6 +142,7 @@ python -m app.analysis.run 2024    # 통계 기준선 평가 표 출력
 
 - **약관은 코드보다 먼저 읽는다.** 번역 기능을 다 만들고 나서 가디언 약관이 번역·LLM 가공을 금지한다는 걸 알았다. 하루 만에 걷어내고, 그 뒤로는 소스마다 조항을 ADR에 인용한다.
 - **무료 한도가 설계를 정한다.** 모델 선택(flash-lite), 묶음 호출, 하루 90회 수집 배치, 38일짜리 적재 계획은 전부 한도 숫자에서 나왔다.
+- **평균만 보고 "이겼다"고 쓰지 않는다.** LLM의 Brier가 Elo보다 낮았지만 같은 경기끼리 짝지은 부트스트랩으로는 우연과 구별되지 않았다. 결과 표에 판정까지 싣는다.
 - **API 집계값을 믿지 않는다.** 상대 전적 집계가 틀려서 경기 목록에서 직접 셌다. 경기 데이터의 `"55%"`, `"2.43"`, `None`은 전부 다듬는 함수를 거친다.
 - **배포가 안 바뀌면 연결된 레포 이름부터 본다.** Vercel이 다른 GitHub 계정의 옛 복사본을 보고 있었다. 깃 작성자 이메일도 다른 계정 것이었다.
 - **Neon의 pooler 주소는 준비된 문장을 지원하지 않는다.** 같은 질의를 5번 넘게 보내면 연결이 끊긴다 → `prepare_threshold=None`.
