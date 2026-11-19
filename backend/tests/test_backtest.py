@@ -4,10 +4,12 @@ import json
 
 import numpy as np
 import pandas as pd
+import pytest
+from pydantic import ValidationError
 
 from app.analysis.backtest import bootstrap_diff_ci, check_hypothesis, condition_mask, describe
 from app.analysis.backtest_run import pending_predictions, run
-from app.analysis.llm_analyst import AnalystOutputV2, Hypothesis, ask_v2, hypothesis_text
+from app.analysis.llm_analyst import HYPOTHESIS_FEATURES_V3, SYSTEM_INSTRUCTION_V3, TACTICAL_INPUT_LINES, AnalystOutputV2, AnalystOutputV3, Hypothesis, ask_v2, ask_v3, build_input_v3, hypothesis_text
 from app.analysis.llm_run import run_llm
 from app.analysis.dataset import build_features
 from app.analysis.evaluate import time_split
@@ -79,3 +81,46 @@ def test_backtest_run_checks_pending_v2_predictions_once(session):
     assert sum(counts.values()) == 3 and set(counts) <= {"supported", "not_supported", "insufficient"}
     assert session.query(HypothesisCheck).count() == 3
     assert run(session, history) == {}  # 두 번째 실행은 할 일이 없다
+class FakeClientV3:
+    """정해 둔 v3 답을 돌려주고, 받은 입력을 기억한다."""
+
+    def __init__(self, feature: str = "possession_diff"):
+        self.interactions, self.feature, self.seen = self, feature, {}
+
+    def create(self, **kwargs):
+        self.seen = kwargs
+        feature = self.feature
+
+        class R:
+            output_text = json.dumps({"p_home": 0.5, "p_draw": 0.3, "p_away": 0.2, "rationale": "점유율 차 12.5가 크다", "hypothesis": {"feature": feature, "op": ">=", "value": 10, "claim": "home_win_rate_higher", "reason": "공을 오래 쥔다"}})
+
+        return R()
+
+
+def test_v3_input_adds_tactical_numbers_and_marks_missing():
+    row = pd.Series({"elo_diff": 80.0, "possession_diff": 12.46, "xg_for_diff": 0.512, "pass_accuracy_diff": None})
+    text = build_input_v3(row, "Arsenal", "Everton")
+    assert "possession % difference (home - away): 12.5" in text and "xG created per match difference (home - away): 0.51" in text
+    assert "pass accuracy difference, 0-1 scale (home - away): not available" in text  # 없는 값은 지어내지 못하게 표시
+    assert text.splitlines()[0] == "Match: Arsenal (home) vs Everton (away)" and text.splitlines()[-1] == "Return the JSON object."
+
+
+def test_v3_schema_forbids_elo_only_hypothesis():
+    assert "elo_diff" not in HYPOTHESIS_FEATURES_V3 and "Elo difference is not allowed" in SYSTEM_INSTRUCTION_V3
+    allowed = AnalystOutputV3.model_json_schema()["$defs"]["HypothesisV3"]["properties"]["feature"]["enum"]
+    assert set(allowed) == set(HYPOTHESIS_FEATURES_V3)  # 프롬프트 문장과 스키마가 같은 목록을 쓴다
+    with pytest.raises(ValidationError):
+        ask_v3(FakeClientV3(feature="elo_diff"), pd.Series({"elo_diff": 1.0}), "A", "B")  # 스키마 밖의 답은 저장되지 않는다
+
+
+def test_ask_v3_returns_hypothesis_and_keeps_input():
+    client = FakeClientV3()
+    r = ask_v3(client, pd.Series({"elo_diff": 80.0, "possession_diff": 12.5}), "A", "B")
+    assert r.structured.feature == "possession_diff" and "possession_diff >= 10 이면 홈 승률이 높다" in r.hypothesis
+    assert r.input_text == client.seen["input"] and client.seen["system_instruction"] == SYSTEM_INSTRUCTION_V3
+
+
+def test_v3_hypothesis_features_exist_in_feature_table():
+    table = build_features(biased_season(2022, n=12))
+    assert set(HYPOTHESIS_FEATURES_V3) <= set(table.columns)  # 가설의 특성은 과거 경기 표에서 셀 수 있어야 한다
+    assert {column for column, _, _ in TACTICAL_INPUT_LINES} <= set(table.columns)

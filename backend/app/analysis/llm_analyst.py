@@ -154,3 +154,83 @@ def ask_v2(client, row: pd.Series, home_name: str, away_name: str, masked: bool 
     out = AnalystOutputV2.model_validate_json(interaction.output_text)
     p_home, p_draw, p_away = normalize(out.p_home, out.p_draw, out.p_away)
     return AnalystResultV2(p_home, p_draw, p_away, out.rationale.strip(), hypothesis_text(out.hypothesis), input_text=text, structured=out.hypothesis)
+# ── v3: 전술 숫자를 주고, Elo 단독 가설을 막는다 (4.5단계 ③, ADR 0013) ──
+# v2 가설 97건이 전부 elo_diff였다(ADR 0010). v3는 (1) 입력에 전술 특성을 더하고 (2) 가설에 쓸 수 있는 특성 목록에서 elo_diff를 뺀다.
+# '금지'를 부탁하는 문장이 아니라 출력 스키마로 막는다 — 스키마에 없는 값은 모델이 낼 수 없다.
+
+PROMPT_VERSION_V3 = "v3"
+
+TACTICAL_INPUT_LINES = [
+    # (특성 열, 모델에 보여줄 설명, 소수 자릿수)
+    ("possession_diff", "Last-5 average possession % difference (home - away)", 1),
+    ("pass_volume_diff", "Last-5 passes per match difference (home - away)", 0),
+    ("pass_accuracy_diff", "Last-5 pass accuracy difference, 0-1 scale (home - away)", 3),
+    ("box_shot_share_diff", "Last-5 share of shots taken inside the box, 0-1 scale, difference (home - away)", 3),
+    ("xg_for_diff", "Last-5 xG created per match difference (home - away)", 2),
+    ("xg_against_diff", "Last-5 xG conceded per match difference (home - away; lower is better for home)", 2),
+    ("formation_change_diff", "Formation changed vs previous match, 1 or 0, difference (home - away)", 0),
+]
+
+HYPOTHESIS_FEATURES_V3 = {
+    "form_diff": "last-5 points difference",
+    "rest_diff": "rest days difference",
+    "lineup_changes_diff": "starting-XI changes difference",
+    "possession_diff": "last-5 average possession % difference",
+    "pass_volume_diff": "last-5 passes per match difference",
+    "pass_accuracy_diff": "last-5 pass accuracy difference (0-1)",
+    "box_shot_share_diff": "last-5 inside-box shot share difference (0-1)",
+    "xg_for_diff": "last-5 xG created per match difference",
+    "xg_against_diff": "last-5 xG conceded per match difference",
+    "formation_change_diff": "formation changed (1/0) difference",
+}
+FeatureNameV3 = Literal[
+    "form_diff", "rest_diff", "lineup_changes_diff", "possession_diff", "pass_volume_diff",
+    "pass_accuracy_diff", "box_shot_share_diff", "xg_for_diff", "xg_against_diff", "formation_change_diff",
+]
+
+
+class HypothesisV3(Hypothesis):
+    """v2와 같은 틀이지만 고를 수 있는 특성이 다르다: Elo가 없고 전술 특성이 있다."""
+
+    feature: FeatureNameV3  # type: ignore[assignment]
+
+
+class AnalystOutputV3(BaseModel):
+    p_home: float = Field(ge=0, le=1)
+    p_draw: float = Field(ge=0, le=1)
+    p_away: float = Field(ge=0, le=1)
+    rationale: str
+    hypothesis: HypothesisV3
+
+
+SYSTEM_INSTRUCTION_V3 = (
+    SYSTEM_INSTRUCTION.split("(4) hypothesis:")[0]
+    + "In the rationale, explain HOW the two teams play using the style numbers (possession, passing, shot quality, xG created and conceded), not only who is stronger. "
+    + "(4) hypothesis: ONE testable tactical rule built only from these features: "
+    + ", ".join(f"{k} = {v} (home - away)" for k, v in HYPOTHESIS_FEATURES_V3.items())
+    + ". Use a feature whose value IS given for this match (never one marked 'not available'), preferably the one that stands out most. "
+    + "Elo difference is not allowed as the hypothesis feature: 'the stronger team wins' is not a useful hypothesis. "
+    + "Choose an operator (>= or <=), a numeric threshold near this match's value, and whether the home win rate should be higher or lower when the condition holds. "
+    + "Add a one-sentence Korean reason. Output JSON only."
+)
+
+
+def build_input_v3(row: pd.Series, home_name: str, away_name: str, masked: bool = False) -> str:
+    """v1 입력에 전술 숫자 7줄을 더한다. 스탯이 없는 경기는 'not available'로 보인다."""
+    base = build_input(row, home_name, away_name, masked).split("\n")
+    tactical = [f"{label}: {_fmt(row.get(column), digits)}" for column, label, digits in TACTICAL_INPUT_LINES]
+    return "\n".join(base[:-1] + tactical + base[-1:])
+
+
+def ask_v3(client, row: pd.Series, home_name: str, away_name: str, masked: bool = False) -> AnalystResultV2:
+    """v3: 전술 숫자를 포함한 입력, Elo를 고를 수 없는 가설 틀."""
+    text = build_input_v3(row, home_name, away_name, masked)
+    interaction = client.interactions.create(
+        model=MODEL,
+        system_instruction=SYSTEM_INSTRUCTION_V3,
+        input=text,
+        response_format={"type": "text", "mime_type": "application/json", "schema": AnalystOutputV3.model_json_schema()},
+    )
+    out = AnalystOutputV3.model_validate_json(interaction.output_text)
+    p_home, p_draw, p_away = normalize(out.p_home, out.p_draw, out.p_away)
+    return AnalystResultV2(p_home, p_draw, p_away, out.rationale.strip(), hypothesis_text(out.hypothesis), input_text=text, structured=out.hypothesis)

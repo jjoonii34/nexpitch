@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.analysis.dataset import OUTCOMES, build_features, load_matches
 from app.analysis.evaluate import summarize, time_split
-from app.analysis.llm_analyst import PROMPT_VERSION, PROMPT_VERSION_V2, SECONDS_BETWEEN_CALLS, ask, ask_v2
+from app.analysis.llm_analyst import PROMPT_VERSION, PROMPT_VERSION_V2, PROMPT_VERSION_V3, SECONDS_BETWEEN_CALLS, ask, ask_v2, ask_v3
 from app.analysis.models import MODEL_FEATURES, fit
 from app.analysis.predictions import done_fixture_ids, load_probs, save_llm, save_probs
 from app.models.analysis import Team
@@ -38,7 +38,7 @@ def masked_subset(test: pd.DataFrame, n: int) -> pd.DataFrame:
 
 def run_llm(session: Session, client, test: pd.DataFrame, names: dict[int, str], home_ids: dict[int, int], away_ids: dict[int, int], model: str, masked: bool, max_calls: int, pause: float = SECONDS_BETWEEN_CALLS, version: str = PROMPT_VERSION) -> tuple[int, list[str]]:
     """아직 예측이 없는 경기에 대해 LLM을 부른다. (호출 수, 오류 목록). version이 v2면 틀+숫자 가설을 받는다."""
-    asker = ask_v2 if version == PROMPT_VERSION_V2 else ask
+    asker = {PROMPT_VERSION_V2: ask_v2, PROMPT_VERSION_V3: ask_v3}.get(version, ask)
     done = done_fixture_ids(session, model, version)
     calls, errors = 0, []
     for _, row in test.iterrows():
@@ -111,9 +111,9 @@ if __name__ == "__main__":
         home_ids = {m.id: m.home_id for m in matches}
         away_ids = {m.id: m.away_id for m in matches}
 
-        if version == PROMPT_VERSION_V2:  # 4단계용: 시즌에서 고르게 masked_n경기만 가설을 모은다 (채점은 v1 표 그대로)
+        if version in (PROMPT_VERSION_V2, PROMPT_VERSION_V3):  # 가설 수집용(v2: 4단계, v3: 4.5단계): 시즌에서 고르게 masked_n경기만 가설을 모은다 (채점은 v1 표 그대로)
             calls, errors = run_llm(session, client, masked_subset(test, masked_n), names, home_ids, away_ids, "llm", False, max_calls, version=version)
-            print(f"llm v2: 호출 {calls} · 오류 {len(errors)}")
+            print(f"llm {version}: 호출 {calls} · 오류 {len(errors)}")
             for e in errors[:5]:
                 print("  -", e)
             sys.exit(0)
