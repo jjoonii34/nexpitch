@@ -1,4 +1,4 @@
-# 하루 2회 뉴스 배치: 20개 구단 기사 수집 → DB 저장 → 24시간 지난 기사 정리 (CLAUDE.md 3번 "GitHub Actions cron").
+# 하루 2회 뉴스 배치: 20개 구단 기사 수집 → DB 저장 → 24시간 지난 기사 정리 (작업 지침 3번 "GitHub Actions cron").
 # 서버 상주 프로세스 없이, GitHub가 빌려주는 컴퓨터에서 몇 분 돌고 끝난다. 비용 0원 (공개 레포는 Actions 무료).
 name: news-batch
 
