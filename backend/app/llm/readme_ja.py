@@ -14,8 +14,6 @@ import re
 import sys
 from pathlib import Path
 
-from pydantic import BaseModel
-
 from app.settings import REPO_ROOT
 
 MODEL = "gemini-3.5-flash-lite"
@@ -39,14 +37,8 @@ SYSTEM_INSTRUCTION = (
     "(2) Never change numbers, dates, percentages, code, file paths, URLs or link targets; translate only link text and prose. "
     "Inside code blocks translate only comments after '#'. "
     "(3) Use です/ます for prose; keep tables concise. Use the previous Japanese translation, if given, for consistent terminology. "
-    "(4) Do not add or remove content. Return JSON only."
+    "(4) Do not add or remove content. Output only the translated Markdown document, with no preface and no code fence around it."
 )
-
-
-class TranslationOutput(BaseModel):
-    """모델이 돌려줄 모양: 번역된 Markdown 전체."""
-
-    markdown: str
 
 
 def normalize(text: str) -> str:
@@ -102,6 +94,17 @@ def link_targets(text: str) -> set[str]:
     return set(re.findall(r"\]\(([^)\s]+)\)", text))
 
 
+def heading_count(text: str) -> int:
+    """코드 블록 밖의 제목 줄 수. 번역이 중간에 끊기거나 절이 빠지면 달라진다."""
+    count, in_code = 0, False
+    for line in text.split("\n"):
+        if line.startswith("```"):
+            in_code = not in_code
+        elif not in_code and re.match(r"#{1,6} ", line):
+            count += 1
+    return count
+
+
 def check(source: str, translated: str) -> list[str]:
     """번역이 숫자·링크를 바꾸지 않았는지. 문제 목록을 돌려준다 (빈 목록이면 통과)."""
     problems = []
@@ -114,11 +117,17 @@ def check(source: str, translated: str) -> list[str]:
         problems.append(f"링크가 바뀌거나 빠짐: {sorted(missing_links)[:10]}")
     if src.count("```") != out.count("```"):
         problems.append("코드 블록 개수가 다름")
+    if heading_count(src) != heading_count(out):
+        problems.append(f"제목(#) 개수가 다름: 원문 {heading_count(src)} / 번역 {heading_count(out)} — 번역이 중간에 끊겼을 수 있다")
     return problems
 
 
 def translate(client, source: str, previous: str | None) -> str:
-    """Gemini에 한 번 묻는다. 네트워크가 필요한 유일한 함수."""
+    """Gemini에 한 번 묻는다. 네트워크가 필요한 유일한 함수.
+
+    출력은 JSON으로 감싸지 않고 Markdown 그대로 받는다. JSON 문자열 안에서 README의 큰따옴표(`"55%"`)가 문자열을 끝내 버려
+    번역이 그 자리에서 잘렸다 (2026-11-19 확인, Actions 실패의 원인).
+    """
     parts = ["Korean README to translate:\n\n" + prepare_source(source)]
     if previous:
         parts.append("Previous Japanese translation (for terminology only; translate the README above fully):\n\n" + STAMP_RE.sub("", normalize(previous)))
@@ -126,9 +135,8 @@ def translate(client, source: str, previous: str | None) -> str:
         model=MODEL,
         system_instruction=SYSTEM_INSTRUCTION,
         input="\n\n---\n\n".join(parts),
-        response_format={"type": "text", "mime_type": "application/json", "schema": TranslationOutput.model_json_schema()},
     )
-    return TranslationOutput.model_validate_json(interaction.output_text).markdown
+    return interaction.output_text
 
 
 def update(client, source_path: Path = SOURCE, target_path: Path = TARGET) -> str:

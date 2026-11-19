@@ -74,6 +74,7 @@ def test_backtest_run_checks_pending_v2_predictions_once(session):
     run_llm(session, FakeClientV2(), test.head(3), names, home_ids, away_ids, "llm", False, 10, pause=0, version="v2")
 
     assert len(pending_predictions(session)) == 3
+    assert all(p.input_text.startswith("Match: ") for p in pending_predictions(session))  # 보낸 입력을 함께 저장한다
     counts = run(session, history)
     assert sum(counts.values()) == 3 and set(counts) <= {"supported", "not_supported", "insufficient"}
     assert session.query(HypothesisCheck).count() == 3

@@ -59,9 +59,16 @@ def hypothesis_metrics(hypotheses: list[dict | None], verdicts: dict[tuple, str]
 # ── 근거 충실도 ──
 
 
-def allowed_numbers(row: pd.Series, probs: tuple[float, float, float]) -> set[float]:
-    """근거 문장에 나와도 되는 숫자: 모델에 보여준 입력값(보여준 자릿수로, 부호 없이), '최근 5경기'의 5, 모델 자신의 확률."""
+def allowed_numbers(row: pd.Series, probs: tuple[float, float, float], input_text: str | None = None) -> set[float]:
+    """근거 문장에 나와도 되는 숫자: 모델에 보여준 입력값(부호 없이), '최근 5경기'의 5, 모델 자신의 확률.
+
+    input_text(그때 실제로 보낸 입력)가 저장돼 있으면 그 안의 숫자를 쓴다. 없으면(2026-11-19 이전 예측) 지금 특성 표에서 다시 계산하는데,
+    그 사이 수집이 진행돼 xG 같은 값이 바뀌었으면 틀리게 잡을 수 있다.
+    """
     allowed = {float(FORM_WINDOW)}
+    if input_text:
+        allowed.update(float(n) for n in NUMBER_RE.findall(input_text))
+        row = pd.Series(dtype=float)
     for column, digits in INPUT_DIGITS.items():
         value = row.get(column)
         if value is not None and not pd.isna(value):
@@ -106,7 +113,7 @@ def score_version(label: str, predictions: list[dict], features: pd.DataFrame, o
     diff, low, high = paired_brier_diff(probs, elo, sub)
     result.update({"brier": brier(probs, sub), "vs_elo": diff, "vs_elo_low": low, "vs_elo_high": high})
     result.update(hypothesis_metrics([p.get("hypothesis_json") for p in rows], verdicts))
-    pairs = [grounded_numbers(p.get("rationale") or "", allowed_numbers(features.loc[p["fixture_id"]], (p["p_home"], p["p_draw"], p["p_away"]))) for p in rows]
+    pairs = [grounded_numbers(p.get("rationale") or "", allowed_numbers(features.loc[p["fixture_id"]], (p["p_home"], p["p_draw"], p["p_away"]), p.get("input_text"))) for p in rows]
     result.update(faithfulness_metrics(pairs))
     return result
 
@@ -155,7 +162,7 @@ def evaluate_versions(session: Session, season: int) -> list[dict]:
     groups: dict[tuple[str, str], list[dict]] = {}
     for p in session.scalars(select(Prediction).where(Prediction.model.in_(["llm", "llm_masked"]))):
         groups.setdefault((p.model, p.version), []).append(
-            {"fixture_id": p.fixture_id, "p_home": p.p_home, "p_draw": p.p_draw, "p_away": p.p_away, "rationale": p.rationale, "hypothesis_json": p.hypothesis_json}
+            {"fixture_id": p.fixture_id, "p_home": p.p_home, "p_draw": p.p_draw, "p_away": p.p_away, "rationale": p.rationale, "hypothesis_json": p.hypothesis_json, "input_text": p.input_text}
         )
     return [score_version(f"{model} {version}", rows, features, outcomes, elo, verdicts) for (model, version), rows in sorted(groups.items())]
 
@@ -169,7 +176,7 @@ def ungrounded_examples(session: Session, season: int, limit: int = 5) -> list[s
     for p in session.scalars(select(Prediction).where(Prediction.model == "llm").order_by(Prediction.version.desc(), Prediction.fixture_id)):
         if p.fixture_id not in features.index:
             continue
-        allowed = allowed_numbers(features.loc[p.fixture_id], (p.p_home, p.p_draw, p.p_away))
+        allowed = allowed_numbers(features.loc[p.fixture_id], (p.p_home, p.p_draw, p.p_away), p.input_text)
         bad = [n for n in NUMBER_RE.findall(p.rationale or "") if not any(math.isclose(float(n), a, abs_tol=1e-9) for a in allowed)]
         if bad:
             examples.append(f"[{p.version}] 입력에 없는 숫자 {bad} ← {p.rationale}")

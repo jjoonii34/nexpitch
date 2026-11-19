@@ -44,6 +44,7 @@ class AnalystResult:
     p_away: float
     rationale: str
     hypothesis: str
+    input_text: str | None = None  # 모델에 보낸 입력 그대로 (예측과 함께 저장해 나중에 근거를 대조한다)
 
 
 def _fmt(value, digits: int = 1) -> str:
@@ -78,15 +79,16 @@ def normalize(p_home: float, p_draw: float, p_away: float, floor: float = 0.02) 
 
 def ask(client, row: pd.Series, home_name: str, away_name: str, masked: bool = False) -> AnalystResult:
     """Gemini에 한 경기를 묻는다. 네트워크가 필요한 유일한 함수."""
+    text = build_input(row, home_name, away_name, masked)
     interaction = client.interactions.create(
         model=MODEL,
         system_instruction=SYSTEM_INSTRUCTION,
-        input=build_input(row, home_name, away_name, masked),
+        input=text,
         response_format={"type": "text", "mime_type": "application/json", "schema": AnalystOutput.model_json_schema()},
     )
     out = AnalystOutput.model_validate_json(interaction.output_text)
     p_home, p_draw, p_away = normalize(out.p_home, out.p_draw, out.p_away)
-    return AnalystResult(p_home, p_draw, p_away, out.rationale.strip(), out.hypothesis.strip())
+    return AnalystResult(p_home, p_draw, p_away, out.rationale.strip(), out.hypothesis.strip(), input_text=text)
 
 
 # ── v2: 검증 가능한 가설 (ADR 0010) ──
@@ -142,12 +144,13 @@ def hypothesis_text(h: Hypothesis) -> str:
 
 def ask_v2(client, row: pd.Series, home_name: str, away_name: str, masked: bool = False) -> AnalystResultV2:
     """v2: 같은 입력, 가설만 틀+숫자로 받는다."""
+    text = build_input(row, home_name, away_name, masked)
     interaction = client.interactions.create(
         model=MODEL,
         system_instruction=SYSTEM_INSTRUCTION_V2,
-        input=build_input(row, home_name, away_name, masked),
+        input=text,
         response_format={"type": "text", "mime_type": "application/json", "schema": AnalystOutputV2.model_json_schema()},
     )
     out = AnalystOutputV2.model_validate_json(interaction.output_text)
     p_home, p_draw, p_away = normalize(out.p_home, out.p_draw, out.p_away)
-    return AnalystResultV2(p_home, p_draw, p_away, out.rationale.strip(), hypothesis_text(out.hypothesis), structured=out.hypothesis)
+    return AnalystResultV2(p_home, p_draw, p_away, out.rationale.strip(), hypothesis_text(out.hypothesis), input_text=text, structured=out.hypothesis)

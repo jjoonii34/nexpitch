@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pandas as pd
 import pytest
 
-from app.analysis.dataset import OUTCOMES, MatchRecord, build_features, outcome
+from app.analysis.dataset import OUTCOMES, TACTICAL_COLUMNS, MatchRecord, TeamStyle, build_features, outcome
 from app.analysis.elo import EloTable, expected_score
 from app.analysis.evaluate import accuracy, brier, brier_each, log_loss, paired_brier_diff, time_split
 from app.analysis.models import fit
@@ -100,3 +100,33 @@ def test_paired_brier_diff_prefers_better_model():
     diff, low, high = paired_brier_diff(perfect, flat, outcomes)
     assert diff < 0 and high < 0  # 완벽한 모델이 확실히 낫다
     assert paired_brier_diff(flat, flat, outcomes) == (0.0, 0.0, 0.0)
+
+
+def test_tactical_features_use_only_past_matches_and_need_data():
+    possession_team = TeamStyle(possession=60, passes=600, passes_accurate=540, shots=10, shots_in_box=8)
+    counter_team = TeamStyle(possession=40, passes=300, passes_accurate=240, shots=10, shots_in_box=4)
+    matches = [
+        match(1, 10, 20, 1, 0, home_style=possession_team, away_style=counter_team, home_xg=2.0, away_xg=0.5, home_formation="4-3-3", away_formation="5-4-1"),
+        match(2, 20, 10, 0, 0, home_style=counter_team, away_style=possession_team, home_xg=0.4, away_xg=1.0, home_formation="4-4-2", away_formation="4-3-3"),
+        match(3, 10, 30, 2, 0),  # 30번 팀은 기록이 없다
+    ]
+    table = build_features(matches)
+    assert table.iloc[0][TACTICAL_COLUMNS].isna().all()  # 첫 경기: 그 경기의 스탯을 그 경기 특성에 쓰지 않는다 (누출 금지)
+
+    second = table.iloc[1]  # 홈 20번(역습형) vs 원정 10번(점유형), 둘 다 지난 1경기 기록
+    assert second["possession_diff"] == 40 - 60 and second["pass_volume_diff"] == 300 - 600
+    assert second["pass_accuracy_diff"] == pytest.approx(240 / 300 - 540 / 600)
+    assert second["box_shot_share_diff"] == pytest.approx(0.4 - 0.8)
+    assert second["xg_for_diff"] == pytest.approx(0.5 - 2.0) and second["xg_against_diff"] == pytest.approx(2.0 - 0.5)
+    assert second["formation_change_diff"] == 1 - 0  # 20번은 5-4-1 → 4-4-2로 바꿨고 10번은 그대로
+
+    assert pd.isna(table.iloc[2]["possession_diff"])  # 한쪽 기록이 없으면 차이를 못 구한다
+
+
+def test_tactical_model_fits_and_predicts():
+    style = {1: TeamStyle(65, 650, 590, 15, 11), 2: TeamStyle(55, 520, 450, 12, 8), 3: TeamStyle(45, 400, 320, 10, 5), 4: TeamStyle(35, 300, 220, 8, 3)}
+    matches = [MatchRecord(**{**m.__dict__, "home_style": style[m.home_id], "away_style": style[m.away_id], "home_xg": float(m.home_goals), "away_xg": float(m.away_goals)}) for m in biased_season(2022) + biased_season(2023, offset=1000)]
+    train, test = time_split(build_features(matches), [2023])
+    probs = fit("elo+tactical", train).predict_proba(test)
+    assert list(probs.columns) == OUTCOMES and probs.sum(axis=1).round(6).eq(1).all()
+    assert brier(probs, test["outcome"]) < brier(fit("constant", train).predict_proba(test), test["outcome"])

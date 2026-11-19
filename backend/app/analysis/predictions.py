@@ -26,6 +26,7 @@ def save_llm(session: Session, model: str, version: str, fixture_id: int, result
             fixture_id=fixture_id, model=model, version=version, p_home=result.p_home, p_draw=result.p_draw, p_away=result.p_away,
             rationale=result.rationale, hypothesis=result.hypothesis,
             hypothesis_json=getattr(result, "structured", None).model_dump() if getattr(result, "structured", None) else None,
+            input_text=getattr(result, "input_text", None),
         )
     )
     session.commit()

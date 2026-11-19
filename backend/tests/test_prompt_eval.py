@@ -33,6 +33,8 @@ def test_grounded_numbers_flags_invented_numbers():
     assert grounded_numbers("엘로 256 우위, 최근 5경기 승점 차 -6, 홈 승 62%", allowed) == (4, 4)
     assert grounded_numbers("점유율 60퍼센트를 유지한다", allowed) == (0, 1)  # 입력에 없는 숫자
     assert grounded_numbers("숫자 없는 문장", allowed) == (0, 0)
+    stored = allowed_numbers(row, (0.5, 0.3, 0.2), input_text="Elo difference: 255, xG difference gap: 2.42")  # 저장된 입력이 있으면 그것이 기준
+    assert grounded_numbers("xG 격차 2.42, 엘로 255", stored) == (2, 2) and grounded_numbers("엘로 256", stored) == (0, 1)
 
 
 def test_faithfulness_metrics():

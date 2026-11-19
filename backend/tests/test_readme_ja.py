@@ -1,7 +1,5 @@
 """README 일본어 자동 번역 테스트 (ADR 0012). 가짜 Gemini로 지문·검사·덮어쓰기 방지를 확인한다."""
 
-import json
-
 import pytest
 
 from app.llm.readme_ja import JA_SWITCH, KO_SWITCH, check, finalize, needs_update, read_stamp, source_hash, stamp, update, with_stamp
@@ -21,7 +19,7 @@ class FakeClient:
         markdown = self.markdown
 
         class R:
-            output_text = json.dumps({"markdown": markdown})
+            output_text = markdown
 
         return R()
 
@@ -45,6 +43,7 @@ def test_check_catches_changed_numbers_and_links():
     assert check(SOURCE, GOOD) == []
     assert any("숫자" in p for p in check(SOURCE, GOOD.replace("0.6021", "0.6012")))
     assert any("링크" in p for p in check(SOURCE, GOOD.replace("docs/adr/0008.md", "docs/adr/0009.md")))
+    assert any("제목" in p for p in check(SOURCE + "\n## 끝 절\n", GOOD))  # 번역이 중간에 끊겨 절이 빠진 경우
 
 
 def test_update_translates_once_then_skips(tmp_path):

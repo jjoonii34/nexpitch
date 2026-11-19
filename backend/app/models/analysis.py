@@ -170,6 +170,7 @@ class Prediction(Base):
     rationale: Mapped[str | None] = mapped_column(Text)  # LLM의 근거 (한국어)
     hypothesis: Mapped[str | None] = mapped_column(Text)  # LLM의 선발·전술 가설 (한국어, 검증 가능한 형태)
     hypothesis_json: Mapped[dict | None] = mapped_column(JsonColumn, nullable=True)  # v2: 틀+숫자 가설 {feature, op, value, claim} (ADR 0010)
+    input_text: Mapped[str | None] = mapped_column(Text, nullable=True)  # LLM에 실제로 보낸 입력. 수집이 진행되면 특성 값이 바뀌므로, 근거 충실도 검사는 이것과 대조한다 (2026-11-19)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
