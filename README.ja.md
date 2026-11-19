@@ -97,7 +97,7 @@ v2 で仮説は検証可能になりましたが、すべて自明な仮説で�
 - **frontend/** Next.js 16（Cache Components）。画面は外部 API の形を知りません：`football.ts`（呼び出し・キャッシュ）→ `mappers.ts`（純粋な変換）→ `types.ts` → 画面。API キーがない、または呼び出しに失敗した場合はサンプルデータを表示しますが、**「サンプルデータです」という帯を必ず** 表示します。
 - **backend/** Python。収集器は「ソース 1 つ = クラス 1 つ」という規約に従い、ネットワーク関数と純粋な変換関数を分けて、変換部分だけをテストします。分析モジュールは **その試合より前の記録だけ** で特徴量を作ります（情報リーク防止）。
 - **DB スキーマ** は Alembic マイグレーションで管理し、バッチの開始時に適用します。
-- **テスト**：フロントエンド 16 件（Node 組み込みランナー）、バックエンド 67 件（pytest、インメモリ SQLite・フェイククライアント）。すべてネットワークなしで動きます。
+- **テスト**：フロントエンド 16 件（Node 組み込みランナー）、バックエンド 72 件（pytest、インメモリ SQLite・フェイククライアント）。すべてネットワークなしで動きます。
 
 ## データソースと利用規約 — 先に読み、条項を引用する
 
@@ -138,13 +138,14 @@ cd backend
 python -m venv .venv && .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env               # GUARDIAN_API_KEY, DATABASE_URL, API_FOOTBALL_KEY, GEMINI_API_KEY
-python -m pytest                   # 67 件、ネットワークなし
+python -m pytest                   # 72 件、ネットワークなし
 python -m alembic upgrade head     # テーブル作成・最新スキーマへ（ADR 0011）
 python -m app.collect              # ニュース収集 → DB,  python -m app.cleanup  # 24 時間経過分の削除
 python -m app.analysis_collect 90  # 分析データの収集（1 日の予算内で）
 python -m app.analysis.run 2024    # 統計ベースラインの評価表を出力
 python -m app.analysis.llm_run 2024 400 90   # LLM アナリストの実行 → 採点表（Gemini 無料枠に注意）
 python -m app.analysis.prompt_eval 2024      # プロンプトのバージョン比較表（予測・仮説の質・根拠の忠実度）
+python -m app.analysis.tactical_run 2024     # チームスタイル表・折半信頼性・戦術特徴量の暫定評価
 ```
 
 ## 設計判断（ADR、本文は韓国語）
@@ -162,6 +163,7 @@ python -m app.analysis.prompt_eval 2024      # プロンプトのバージョン
 | [0009](docs/adr/0009-LLM-분석가-같은-숫자-같은-지표.md) | LLM アナリストは統計モデルと同じ数値だけを受け取り、同じ指標で採点。チーム名を伏せた版で記憶を統制 | 記事の入力（規約）、上位モデル（上限）、組み合わせ重みの学習（リーク） |
 | [0010](docs/adr/0010-LLM-가설은-틀과-숫자로-받아-과거-데이터로-역검증.md) | LLM の仮説は「特徴量・不等号・値・向き」の型で受け取り、学習シーズンの試合で逆検証（ブートストラップ区間、最小 20 試合） | 自由文の仮説、LLM による条件式への変換、p 値のみ |
 | [0011](docs/adr/0011-DB-구조-변경은-Alembic-마이그레이션.md) | DB スキーマの変更は Alembic マイグレーションで行い、バッチ開始時に適用 | 手書き SQL ファイル、create_all + 手動 ALTER |
+| [0013](docs/adr/0013-전술-특성과-LLM-입력-저장.md) | 戦術特徴量 7 個（ポゼッション・パス・シュートの質・xG の攻守・フォーメーション変更）、LLM に送った入力を予測と一緒に保存 | フォーメーションの相性（標本不足）、監督に関する変数、入力を保存しない |
 | [0012](docs/adr/0012-README-일본어판-자동-번역.md) | README の日本語版は Actions + Gemini で自動更新し、数値・リンクの検査に通った場合のみ保存 | 手動翻訳のみ、ブラウザ翻訳 |
 
 ## 学んだこと（要約 — 全文は [docs/notes.md](docs/notes.md)、韓国語）

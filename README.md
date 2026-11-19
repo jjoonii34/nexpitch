@@ -89,7 +89,7 @@ v2는 가설을 검증할 수 있게 만들었지만 전부 당연한 가설이�
 - **frontend/** Next.js 16 (Cache Components). 화면은 외부 API의 모양을 모른다: `football.ts`(호출·캐시) → `mappers.ts`(순수 변환) → `types.ts` → 화면. 키가 없거나 실패하면 샘플 데이터를 보여주되 **"샘플 데이터입니다" 띠를 반드시** 띄운다.
 - **backend/** Python. 수집기는 "소스 하나 = 클래스 하나" 규약, 네트워크 함수와 순수 변환 함수를 나눠 변환만 테스트한다. 분석 모듈은 **경기 전까지의 기록만**으로 특성을 만든다(정보 누출 금지).
 - **DB 구조**는 Alembic 마이그레이션으로 관리하고, 배치가 시작할 때 적용한다.
-- **테스트**: 프론트 16 (Node 내장 러너), 백엔드 67 (pytest, 메모리 SQLite·가짜 클라이언트). 전부 네트워크 없이 돈다.
+- **테스트**: 프론트 16 (Node 내장 러너), 백엔드 72 (pytest, 메모리 SQLite·가짜 클라이언트). 전부 네트워크 없이 돈다.
 
 ## 데이터 소스와 약관 
 
@@ -130,13 +130,14 @@ cd backend
 python -m venv .venv && .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env               # GUARDIAN_API_KEY, DATABASE_URL, API_FOOTBALL_KEY, GEMINI_API_KEY
-python -m pytest                   # 67개, 네트워크 없음
+python -m pytest                   # 72개, 네트워크 없음
 python -m alembic upgrade head     # 테이블 만들기·최신 구조로 (ADR 0011)
 python -m app.collect              # 뉴스 수집 → DB,  python -m app.cleanup  # 24시간 정리
 python -m app.analysis_collect 90  # 분석 데이터 수집 (하루 예산 안에서)
 python -m app.analysis.run 2024    # 통계 기준선 평가 표 출력
 python -m app.analysis.llm_run 2024 400 90   # LLM 분석가 실행 → 채점 표 (Gemini 무료 한도 주의)
 python -m app.analysis.prompt_eval 2024      # 프롬프트 버전 비교표 (예측·가설의 질·근거 충실도)
+python -m app.analysis.tactical_run 2024     # 팀 스타일 표·반분 안정성·전술 특성 잠정 평가
 ```
 
 ## 설계 결정 (ADR)
@@ -154,6 +155,7 @@ python -m app.analysis.prompt_eval 2024      # 프롬프트 버전 비교표 (�
 | [0009](docs/adr/0009-LLM-분석가-같은-숫자-같은-지표.md) | LLM 분석가는 통계 모델과 같은 숫자만 받고 같은 지표로 채점, 팀 이름 가린 변형으로 기억 통제 | 기사 입력(약관), 상위 모델(한도), 결합 가중치 학습(누출) |
 | [0010](docs/adr/0010-LLM-가설은-틀과-숫자로-받아-과거-데이터로-역검증.md) | LLM 가설은 '특성·부등호·값·방향' 틀로 받아 학습 시즌 경기로 역검증 (부트스트랩 구간, 최소 20경기) | 자유 문장 가설, LLM으로 조건식 번역, p값만 |
 | [0011](docs/adr/0011-DB-구조-변경은-Alembic-마이그레이션.md) | DB 구조 변경은 Alembic 마이그레이션으로, 배치가 시작할 때 적용 | 손 SQL 파일, create_all + 손 ALTER |
+| [0013](docs/adr/0013-전술-특성과-LLM-입력-저장.md) | 전술 특성 7개(점유·패스·슈팅 질·xG 공수·포메이션 변경), LLM에 보낸 입력을 예측과 함께 저장 | 포메이션 상성(표본 부족), 감독 변수, 입력 미저장 |
 | [0012](docs/adr/0012-README-일본어판-자동-번역.md) | README 일본어판은 Actions + Gemini로 자동 갱신, 숫자·링크 검사 통과 시에만 저장 | 손 번역만, 브라우저 번역 |
 
 ## (요약 — 전체는 [docs/notes.md](docs/notes.md))
