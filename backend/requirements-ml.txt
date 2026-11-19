@@ -1,0 +1,4 @@
+# 모델 학습용 추가 설치 (ADR 0014). 수집 배치(GitHub Actions)는 requirements.txt만 설치한다 - torch가 수백 MB라 매일 도는 배치를 무겁게 하지 않기 위해.
+# 설치: pip install -r requirements.txt -r requirements-ml.txt
+--index-url https://download.pytorch.org/whl/cpu
+torch          # 선수·팀 임베딩 모델 학습 (CPU 전용 빌드: 모델이 작아 GPU가 필요 없고, 기본 빌드보다 훨씬 작다)
